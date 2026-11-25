@@ -156,7 +156,33 @@ aibom_mapping = OntologyMapping(
     ],
 )
 
+baseten_mapping = OntologyMapping(
+    module_name="baseten",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="BasetenModel",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Baseten hosts the model; the model's original vendor is not reported.
+                OntologyFieldMapping(
+                    ontology_field="provider",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "baseten"},
+                ),
+                # status: deployment status lives on BasetenDeployment, not the model.
+                # Model type is not mapped: Baseten does not say whether a model is a
+                # foundation, custom, or fine-tuned model.
+            ],
+        ),
+    ],
+)
+
+
 AIMODELS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "baseten": baseten_mapping,
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "aibom": aibom_mapping,

@@ -33,6 +33,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Anthropic](../modules/anthropic/schema.md)
 - [AWS](../modules/aws/schema.md)
 - [Azure](../modules/azure/schema.md)
+- [Baseten](../modules/baseten/schema.md)
 - [BBOT](../modules/bbot/schema.md)
 - [Bigfix](../modules/bigfix/schema.md)
 - [Bitbucket](../modules/bitbucket/schema.md)

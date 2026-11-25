@@ -397,7 +397,38 @@ neon_mapping = OntologyMapping(
 )
 
 
+baseten_mapping = OntologyMapping(
+    module_name="baseten",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="BasetenApiKey",
+            fields=[
+                # Key names are optional in Baseten; fall back to the key prefix.
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                    special_handling="coalesce",
+                    extra={"fields": ["prefix"]},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="expires_at", node_field="expires_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="last_used_at", node_field="last_used_at"
+                ),
+                # updated_at: Baseten API keys cannot be modified after creation.
+            ],
+        ),
+    ],
+)
+
+
 APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "baseten": baseten_mapping,
     "zendesk": zendesk_mapping,
     "anthropic": anthropic_mapping,
     "github": github_mapping,

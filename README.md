@@ -98,6 +98,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Amazon Web Services](https://docs.cartography.dev/modules/aws/index.html) - ACM, API Gateway, Bedrock, CloudWatch, CodeBuild, Config, Cognito, EC2, ECS, ECR (including multi-arch images, image layers, and attestations), EFS, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, Glue,  GuardDuty, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, SageMaker, Secrets Manager(Secret Versions), Security Hub, SNS, SQS, SSM, STS, Tags
 - [AIBOM](https://docs.cartography.dev/modules/aibom/index.html) - AI component detections linked to ECR images
 - [Anthropic](https://docs.cartography.dev/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
+- [Baseten](https://docs.cartography.dev/modules/baseten/index.html) - Organization, Team, User, ApiKey, Secret, Model, Deployment, Chain, EnvironmentGroup
 - [BigFix](https://docs.cartography.dev/modules/bigfix/index.html) - Computers
 - [Cloudflare](https://docs.cartography.dev/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
 - [Crowdstrike Falcon](https://docs.cartography.dev/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
