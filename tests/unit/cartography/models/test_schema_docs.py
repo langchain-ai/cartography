@@ -359,6 +359,7 @@ def test_module_titles_use_display_overrides():
     expected = {
         "aibom": "AIBOM",
         "aws": "AWS",
+        "fireworks": "Fireworks AI",
         "gcp": "GCP",
         "oci": "OCI",
         "sentinelone": "SentinelOne",

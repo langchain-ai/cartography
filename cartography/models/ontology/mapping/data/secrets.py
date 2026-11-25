@@ -239,7 +239,24 @@ onepassword_mapping = OntologyMapping(
 )
 
 
+fireworks_mapping = OntologyMapping(
+    module_name="fireworks",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FireworksSecret",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="key_name", required=True
+                ),
+                # created_at, updated_at, rotation_enabled: Not returned by the API
+            ],
+        ),
+    ],
+)
+
+
 SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "fireworks": fireworks_mapping,
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,

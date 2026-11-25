@@ -77,6 +77,7 @@ PANEL_CLOUDFLARE = "Cloudflare Options"
 PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
+PANEL_FIREWORKS = "Fireworks AI Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_LANGSMITH = "LangSmith Options"
 PANEL_DATABRICKS = "Databricks Options"
@@ -158,6 +159,7 @@ MODULE_PANELS = {
     "tailscale": PANEL_TAILSCALE,
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
+    "fireworks": PANEL_FIREWORKS,
     "airbyte": PANEL_AIRBYTE,
     "langsmith": PANEL_LANGSMITH,
     "databricks": PANEL_DATABRICKS,
@@ -2048,6 +2050,27 @@ class CLI:
                     help="Anthropic workspace ID, required when the federation rule covers several workspaces.",
                     rich_help_panel=PANEL_ANTHROPIC,
                     hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Fireworks AI Options
+            # =================================================================
+            fireworks_apikey_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--fireworks-apikey-env-var",
+                    help="Environment variable name containing a Fireworks AI API key. Use a key owned by an admin user or service account to read every API key.",
+                    rich_help_panel=PANEL_FIREWORKS,
+                    hidden=PANEL_FIREWORKS not in visible_panels,
+                ),
+            ] = None,
+            fireworks_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--fireworks-account-id",
+                    help="Fireworks AI account ID to sync.",
+                    rich_help_panel=PANEL_FIREWORKS,
+                    hidden=PANEL_FIREWORKS not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -4027,6 +4050,15 @@ class CLI:
                 )
                 anthropic_apikey = os.environ.get(anthropic_apikey_env_var)
 
+            # Read Fireworks AI API key
+            fireworks_apikey = None
+            if fireworks_apikey_env_var:
+                logger.debug(
+                    "Reading Fireworks AI API key from environment variable %s",
+                    fireworks_apikey_env_var,
+                )
+                fireworks_apikey = os.environ.get(fireworks_apikey_env_var)
+
             # Read Sentry token
             sentry_token = None
             if sentry_token_env_var:
@@ -4574,6 +4606,8 @@ class CLI:
                 anthropic_organization_id=anthropic_organization_id,
                 anthropic_service_account_id=anthropic_service_account_id,
                 anthropic_workspace_id=anthropic_workspace_id,
+                fireworks_apikey=fireworks_apikey,
+                fireworks_account_id=fireworks_account_id,
                 sentry_token=sentry_token,
                 sentry_org=sentry_org,
                 sentry_host=sentry_host,

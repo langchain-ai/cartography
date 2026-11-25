@@ -172,7 +172,30 @@ onepassword_mapping = OntologyMapping(
 )
 
 
+# Fireworks AI
+fireworks_mapping = OntologyMapping(
+    module_name="fireworks",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FireworksServiceAccount",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="display_name",
+                    special_handling="coalesce",
+                    extra={"fields": ["user_id"]},
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                # active: Not available
+            ],
+        ),
+    ],
+)
+
+
 SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "fireworks": fireworks_mapping,
     "gcp": gcp_mapping,
     "kubernetes": kubernetes_mapping,
     "openai": openai_mapping,

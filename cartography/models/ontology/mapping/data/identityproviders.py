@@ -174,7 +174,32 @@ langsmith_mapping = OntologyMapping(
 )
 
 
+fireworks_mapping = OntologyMapping(
+    module_name="fireworks",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FireworksIdentityProvider",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="display_name",
+                    special_handling="coalesce",
+                    extra={"fields": ["id"]},
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="protocol", node_field="protocol"),
+                # issuer: not mapped. For SAML providers the node stores the metadata
+                # URL, not the SAML entity ID, so cross-provider issuer queries would
+                # compare different concepts.
+                # enabled: Fireworks AI identity providers have no enable/disable state.
+            ],
+        ),
+    ],
+)
+
+
 IDENTITYPROVIDERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "fireworks": fireworks_mapping,
     "aws": aws_mapping,
     "kubernetes": kubernetes_mapping,
     "keycloak": keycloak_mapping,

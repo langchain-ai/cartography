@@ -45,6 +45,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Digitalocean](../modules/digitalocean/schema.md)
 - [Docker Scout](../modules/docker_scout/schema.md)
 - [Duo](../modules/duo/schema.md)
+- [Fireworks AI](../modules/fireworks/schema.md)
 - [GCP](../modules/gcp/schema.md)
 - [Github](../modules/github/schema.md)
 - [Gitlab](../modules/gitlab/schema.md)
