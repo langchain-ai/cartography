@@ -911,7 +911,27 @@ neon_mapping = OntologyMapping(
 )
 
 
+baseten_mapping = OntologyMapping(
+    module_name="baseten",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="BasetenUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                # inactive: Baseten lists joined members only; deactivated users are
+                # absent from GET /v1/users.
+                # has_mfa: Baseten does not expose MFA or SSO status per user.
+            ],
+        ),
+    ],
+)
+
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "baseten": baseten_mapping,
     "jira": OntologyMapping(
         module_name="jira",
         nodes=[

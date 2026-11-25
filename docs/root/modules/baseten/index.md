@@ -1,0 +1,6 @@
+# Baseten
+
+```{toctree}
+config
+schema
+```

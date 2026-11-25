@@ -1,0 +1,41 @@
+BASETEN_API_KEYS = {
+    "keys": [
+        {
+            "prefix": "abCD1234",
+            "name": "homer-laptop",
+            "type": "PERSONAL",
+            "model_ids": None,
+            "team_name": None,
+            "created_at": "2024-10-01T00:00:00Z",
+            "expires_at": "2024-12-30T00:00:00Z",
+            "last_used_at": "2024-10-20T00:00:00Z",
+            "owner": {
+                "user_id": "user_homer01",
+                "email": "hjsimpson@simpson.corp",
+                "name": "Homer Simpson",
+            },
+        },
+        {
+            "prefix": "efGH5678",
+            "name": "production-inference",
+            "type": "WORKSPACE_INVOKE",
+            "model_ids": ["model_llama01"],
+            "team_name": "Default",
+            "created_at": "2024-07-15T00:00:00Z",
+            "expires_at": None,
+            "last_used_at": "2024-10-21T00:00:00Z",
+            "owner": None,
+        },
+        {
+            "prefix": "ijKL9012",
+            "name": None,
+            "type": "WORKSPACE_MANAGE_ALL",
+            "model_ids": None,
+            "team_name": "Research",
+            "created_at": "2024-08-20T00:00:00Z",
+            "expires_at": None,
+            "last_used_at": None,
+            "owner": None,
+        },
+    ],
+}

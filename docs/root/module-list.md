@@ -11,6 +11,7 @@ modules/airbyte/index
 modules/anthropic/index
 modules/aws/index
 modules/azure/index
+modules/baseten/index
 modules/bbot/index
 modules/bigfix/index
 modules/bitbucket/index

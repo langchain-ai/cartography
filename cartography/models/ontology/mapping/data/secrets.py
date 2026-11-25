@@ -239,7 +239,29 @@ onepassword_mapping = OntologyMapping(
 )
 
 
+baseten_mapping = OntologyMapping(
+    module_name="baseten",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="BasetenSecret",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                # updated_at: Baseten does not report when a secret value was last
+                # rotated.
+                # rotation_enabled: Baseten has no automatic secret rotation.
+            ],
+        ),
+    ],
+)
+
+
 SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "baseten": baseten_mapping,
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,

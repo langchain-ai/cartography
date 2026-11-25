@@ -936,7 +936,34 @@ neon_mapping = OntologyMapping(
 )
 
 
+baseten_mapping = OntologyMapping(
+    module_name="baseten",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="BasetenOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Baseten exposes no organization lifecycle state.
+                # domain: Baseten does not report the organization's domains.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="BasetenTeam",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Baseten exposes no team lifecycle state.
+            ],
+        ),
+    ],
+)
+
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "baseten": baseten_mapping,
     "jira": OntologyMapping(
         module_name="jira",
         nodes=[

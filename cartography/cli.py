@@ -77,6 +77,7 @@ PANEL_CLOUDFLARE = "Cloudflare Options"
 PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
+PANEL_BASETEN = "Baseten Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_LANGSMITH = "LangSmith Options"
 PANEL_DATABRICKS = "Databricks Options"
@@ -158,6 +159,7 @@ MODULE_PANELS = {
     "tailscale": PANEL_TAILSCALE,
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
+    "baseten": PANEL_BASETEN,
     "airbyte": PANEL_AIRBYTE,
     "langsmith": PANEL_LANGSMITH,
     "databricks": PANEL_DATABRICKS,
@@ -2048,6 +2050,18 @@ class CLI:
                     help="Anthropic workspace ID, required when the federation rule covers several workspaces.",
                     rich_help_panel=PANEL_ANTHROPIC,
                     hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Baseten Options
+            # =================================================================
+            baseten_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--baseten-api-key-env-var",
+                    help="Environment variable name containing a Baseten API key.",
+                    rich_help_panel=PANEL_BASETEN,
+                    hidden=PANEL_BASETEN not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -4027,6 +4041,15 @@ class CLI:
                 )
                 anthropic_apikey = os.environ.get(anthropic_apikey_env_var)
 
+            # Read Baseten API key
+            baseten_api_key = None
+            if baseten_api_key_env_var:
+                logger.debug(
+                    "Reading Baseten API key from environment variable %s",
+                    baseten_api_key_env_var,
+                )
+                baseten_api_key = os.environ.get(baseten_api_key_env_var)
+
             # Read Sentry token
             sentry_token = None
             if sentry_token_env_var:
@@ -4574,6 +4597,7 @@ class CLI:
                 anthropic_organization_id=anthropic_organization_id,
                 anthropic_service_account_id=anthropic_service_account_id,
                 anthropic_workspace_id=anthropic_workspace_id,
+                baseten_api_key=baseten_api_key,
                 sentry_token=sentry_token,
                 sentry_org=sentry_org,
                 sentry_host=sentry_host,
