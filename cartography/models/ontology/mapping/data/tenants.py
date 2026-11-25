@@ -868,6 +868,24 @@ orca_mapping = OntologyMapping(
     ],
 )
 
+stripe_mapping = OntologyMapping(
+    module_name="stripe",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="StripeAccount",
+            fields=[
+                # name falls back to the Dashboard display name, then the account ID.
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Stripe reports capability and payout state, not a
+                # tenant lifecycle.
+                # domain: The business website URL isn't a verified domain.
+            ],
+        ),
+    ],
+)
+
 zendesk_mapping = OntologyMapping(
     module_name="zendesk",
     nodes=[
@@ -1064,4 +1082,5 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "langsmith": langsmith_mapping,
+    "stripe": stripe_mapping,
 }

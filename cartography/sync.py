@@ -194,6 +194,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.snowflake", "start_snowflake_ingestion"
         ),
         "zendesk": _LazyStage("cartography.intel.zendesk", "start_zendesk_ingestion"),
+        "stripe": _LazyStage("cartography.intel.stripe", "start_stripe_ingestion"),
         "ontology": _LazyStage("cartography.intel.ontology", "run"),
         # Analysis should be the last stage
         "analysis": _LazyStage("cartography.intel.analysis", "run"),

@@ -1,0 +1,28 @@
+STRIPE_WEBHOOK_ENDPOINTS = [
+    {
+        "id": "we_1Mr5jULkdIwHu7ix1ibLTM0x",
+        "object": "webhook_endpoint",
+        "api_version": None,
+        "application": None,
+        "created": 1680122196,
+        "description": "Billing service",
+        "enabled_events": ["charge.succeeded", "charge.failed"],
+        "livemode": True,
+        "metadata": {"owner": "billing"},
+        "status": "enabled",
+        "url": "https://billing.snpp.example.com/stripe/webhook?token=s3cr3t",
+    },
+    {
+        "id": "we_1PbGh2LkdIwHu7ixQ8Wl9yZe",
+        "object": "webhook_endpoint",
+        "api_version": "2024-06-20",
+        "application": "ca_FkyHCg7X8mlvCUdMDao4mMxagUfhIwXb",
+        "created": 1720000000,
+        "description": None,
+        "enabled_events": ["*"],
+        "livemode": True,
+        "metadata": {},
+        "status": "disabled",
+        "url": "https://user:pass@legacy.example.org:8443/hooks/stripe#frag",
+    },
+]

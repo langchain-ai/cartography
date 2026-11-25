@@ -308,6 +308,27 @@ github_mapping = OntologyMapping(
     ],
 )
 
+stripe_mapping = OntologyMapping(
+    module_name="stripe",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="StripeAppInstall",
+            fields=[
+                # The Stripe App ID is a stable surrogate, not an OAuth client ID.
+                OntologyFieldMapping(
+                    ontology_field="client_id", node_field="app_id", required=True
+                ),
+                # The install object doesn't include the app's display name.
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="app_id", required=True
+                ),
+                # enabled/native_app/protocol: Install status is a lifecycle, and
+                # Stripe Apps don't report a native or OAuth protocol type.
+            ],
+        ),
+    ],
+)
+
 langsmith_mapping = OntologyMapping(
     module_name="langsmith",
     nodes=[
@@ -350,4 +371,5 @@ THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jumpcloud": jumpcloud_mapping,
     "netlify": netlify_mapping,
     "langsmith": langsmith_mapping,
+    "stripe": stripe_mapping,
 }

@@ -1,0 +1,6 @@
+# Stripe
+
+```{toctree}
+config
+schema
+```
