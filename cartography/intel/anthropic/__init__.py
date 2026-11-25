@@ -6,6 +6,7 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 import cartography.intel.anthropic.apikeys
+import cartography.intel.anthropic.compliance
 import cartography.intel.anthropic.users
 import cartography.intel.anthropic.workspaces
 from cartography.config import Config
@@ -26,13 +27,57 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     """
 
     federation = _workload_identity_federation(config)
-    if not config.anthropic_apikey and federation is None:
+    has_admin_access = bool(config.anthropic_apikey) or federation is not None
+    if not has_admin_access and not config.anthropic_compliance_apikey:
         logger.info(
             "Anthropic import is not configured - skipping this module. "
             "See docs to configure.",
         )
         return
 
+    common_job_parameters = {
+        "UPDATE_TAG": config.update_tag,
+        "BASE_URL": "https://api.anthropic.com/v1",
+    }
+
+    if has_admin_access:
+        api_session = _api_session()
+        if federation is not None:
+            api_session.auth = WorkloadIdentityAuth(federation)
+        else:
+            api_session.headers["X-Api-Key"] = config.anthropic_apikey
+
+        # Organization node is created during the users sync
+        cartography.intel.anthropic.users.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+        )
+
+        cartography.intel.anthropic.workspaces.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+        )
+
+        cartography.intel.anthropic.apikeys.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+        )
+
+    if config.anthropic_compliance_apikey:
+        compliance_session = _api_session()
+        compliance_session.headers["X-Api-Key"] = config.anthropic_compliance_apikey
+        cartography.intel.anthropic.compliance.sync(
+            neo4j_session,
+            compliance_session,
+            common_job_parameters["BASE_URL"],
+            config.update_tag,
+        )
+
+
+def _api_session() -> requests.Session:
     api_session = requests.session()
     retry_policy = Retry(
         total=5,
@@ -42,34 +87,7 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     )
     api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     api_session.headers.update({"anthropic-version": "2023-06-01"})
-    if federation is not None:
-        api_session.auth = WorkloadIdentityAuth(federation)
-    else:
-        api_session.headers["X-Api-Key"] = config.anthropic_apikey
-
-    common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
-        "BASE_URL": "https://api.anthropic.com/v1",
-    }
-
-    # Organization node is created during the users sync
-    cartography.intel.anthropic.users.sync(
-        neo4j_session,
-        api_session,
-        common_job_parameters,
-    )
-
-    cartography.intel.anthropic.workspaces.sync(
-        neo4j_session,
-        api_session,
-        common_job_parameters,
-    )
-
-    cartography.intel.anthropic.apikeys.sync(
-        neo4j_session,
-        api_session,
-        common_job_parameters,
-    )
+    return api_session
 
 
 def _workload_identity_federation(
