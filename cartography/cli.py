@@ -77,6 +77,7 @@ PANEL_CLOUDFLARE = "Cloudflare Options"
 PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
+PANEL_STRIPE = "Stripe Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_LANGSMITH = "LangSmith Options"
 PANEL_DATABRICKS = "Databricks Options"
@@ -158,6 +159,7 @@ MODULE_PANELS = {
     "tailscale": PANEL_TAILSCALE,
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
+    "stripe": PANEL_STRIPE,
     "airbyte": PANEL_AIRBYTE,
     "langsmith": PANEL_LANGSMITH,
     "databricks": PANEL_DATABRICKS,
@@ -2050,6 +2052,27 @@ class CLI:
                     hidden=PANEL_ANTHROPIC not in visible_panels,
                 ),
             ] = None,
+            # =================================================================
+            # Stripe Options
+            # =================================================================
+            stripe_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--stripe-api-key-env-var",
+                    help="Environment variable name containing a Stripe restricted API key (rk_...). Use a read-only key.",
+                    rich_help_panel=PANEL_STRIPE,
+                    hidden=PANEL_STRIPE not in visible_panels,
+                ),
+            ] = None,
+            stripe_sync_connected_accounts: Annotated[
+                bool,
+                typer.Option(
+                    "--stripe-sync-connected-accounts",
+                    help="Also sync the accounts connected to a Stripe Connect platform. Off by default because platforms can have many connected accounts.",
+                    rich_help_panel=PANEL_STRIPE,
+                    hidden=PANEL_STRIPE not in visible_panels,
+                ),
+            ] = False,
             # =================================================================
             # Sentry Options
             # =================================================================
@@ -4027,6 +4050,15 @@ class CLI:
                 )
                 anthropic_apikey = os.environ.get(anthropic_apikey_env_var)
 
+            # Read Stripe API key
+            stripe_api_key = None
+            if stripe_api_key_env_var:
+                logger.debug(
+                    "Reading Stripe API key from environment variable %s",
+                    stripe_api_key_env_var,
+                )
+                stripe_api_key = os.environ.get(stripe_api_key_env_var)
+
             # Read Sentry token
             sentry_token = None
             if sentry_token_env_var:
@@ -4574,6 +4606,8 @@ class CLI:
                 anthropic_organization_id=anthropic_organization_id,
                 anthropic_service_account_id=anthropic_service_account_id,
                 anthropic_workspace_id=anthropic_workspace_id,
+                stripe_api_key=stripe_api_key,
+                stripe_sync_connected_accounts=stripe_sync_connected_accounts,
                 sentry_token=sentry_token,
                 sentry_org=sentry_org,
                 sentry_host=sentry_host,

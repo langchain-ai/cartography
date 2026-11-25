@@ -63,6 +63,7 @@ modules/snipeit/index
 modules/snowflake/index
 modules/socketdev/index
 modules/spacelift/index
+modules/stripe/index
 modules/subimage/index
 modules/supabase/index
 modules/sweet/index

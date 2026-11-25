@@ -1,0 +1,76 @@
+TEST_AWS_ACCOUNT_ID = "123456789012"
+TEST_AZURE_SUBSCRIPTION_ID = "00000000-0000-0000-0000-000000000001"
+
+STRIPE_EVENT_DESTINATIONS = [
+    {
+        "id": "ed_61RM8ltWcTW4mbsxf16RJyfa2xSQLHJJh1sxm7H0KVT6",
+        "object": "v2.core.event_destination",
+        "amazon_eventbridge": {
+            "aws_account_id": TEST_AWS_ACCOUNT_ID,
+            "aws_event_source_arn": (
+                "arn:aws:events:us-east-1::event-source/aws.partner/stripe.com/"
+                "ed_61RM8ltWcTW4mbsxf16RJyfa2xSQLHJJh1sxm7H0KVT6"
+            ),
+            "aws_event_source_status": "active",
+        },
+        "created": "2024-10-22T16:20:09.931Z",
+        "description": "Ship account changes to the security data lake",
+        "enabled_events": ["account.updated", "account.application.authorized"],
+        "event_payload": "snapshot",
+        "events_from": ["@self", "@accounts"],
+        "livemode": True,
+        "metadata": {},
+        "name": "security-eventbridge",
+        "snapshot_api_version": "2026-11-18.endive",
+        "status": "enabled",
+        "status_details": None,
+        "type": "amazon_eventbridge",
+        "updated": "2024-10-22T16:22:02.524Z",
+        "webhook_endpoint": None,
+    },
+    {
+        "id": "ed_61RM8nqJdTW4mbsxf16RJyfa2xSQLHJJh1sxm7H0Kazg",
+        "object": "v2.core.event_destination",
+        "azure_event_grid": {
+            "azure_partner_topic_name": "stripe-ed-61RM8nqJ",
+            "azure_partner_topic_status": "never_activated",
+            "azure_region": "eastus",
+            "azure_resource_group_name": "rg-payments",
+            "azure_subscription_id": TEST_AZURE_SUBSCRIPTION_ID,
+        },
+        "created": "2025-01-10T09:00:00.000Z",
+        "description": None,
+        "enabled_events": ["v1.billing.meter.error_report_triggered"],
+        "event_payload": "thin",
+        "events_from": ["@self"],
+        "livemode": True,
+        "metadata": {},
+        "name": "payments-event-grid",
+        "snapshot_api_version": None,
+        "status": "disabled",
+        "status_details": {"disabled": {"reason": "user"}},
+        "type": "azure_event_grid",
+        "updated": "2025-01-11T09:00:00.000Z",
+    },
+    {
+        "id": "ed_61RM8pZbTTW4mbsxf16RJyfa2xSQLHJJh1sxm7H0Kbcd",
+        "object": "v2.core.event_destination",
+        "created": "2025-03-01T12:00:00.000Z",
+        "description": "Thin events for the ledger",
+        "enabled_events": ["v2.core.account.updated"],
+        "event_payload": "thin",
+        "events_from": ["@self"],
+        "livemode": True,
+        "metadata": {},
+        "name": "ledger-webhook",
+        "snapshot_api_version": None,
+        "status": "enabled",
+        "status_details": None,
+        "type": "webhook_endpoint",
+        "updated": "2025-03-01T12:00:00.000Z",
+        "webhook_endpoint": {
+            "signing_secret": None,
+            "url": "https://ledger.snpp.example.com/stripe/thin?key=abc",
+        },
+    },
+]

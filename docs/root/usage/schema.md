@@ -85,6 +85,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Snowflake](../modules/snowflake/schema.md)
 - [Socket.dev](../modules/socketdev/schema.md)
 - [Spacelift](../modules/spacelift/schema.md)
+- [Stripe](../modules/stripe/schema.md)
 - [Subimage](../modules/subimage/schema.md)
 - [Supabase](../modules/supabase/schema.md)
 - [Sweet Security](../modules/sweet/schema.md)
