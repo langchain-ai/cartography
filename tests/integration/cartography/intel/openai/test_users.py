@@ -22,10 +22,15 @@ def _ensure_local_neo4j_has_test_users(neo4j_session):
 
 @patch.object(
     cartography.intel.openai.users,
+    "get_organization_data_retention",
+    return_value="zero_data_retention",
+)
+@patch.object(
+    cartography.intel.openai.users,
     "get",
     return_value=tests.data.openai.users.OPENAI_USERS,
 )
-def test_load_openai_users(mock_api, neo4j_session):
+def test_load_openai_users(mock_api, mock_data_retention, neo4j_session):
     """
     Ensure that users actually get loaded
     """
@@ -45,8 +50,10 @@ def test_load_openai_users(mock_api, neo4j_session):
         TEST_ORG_ID,
     )
 
-    # Assert Organization exists
-    assert check_nodes(neo4j_session, "OpenAIOrganization", ["id"]) == {(TEST_ORG_ID,)}
+    # Assert Organization exists with its data retention control
+    assert check_nodes(
+        neo4j_session, "OpenAIOrganization", ["id", "data_retention"]
+    ) == {(TEST_ORG_ID, "zero_data_retention")}
 
     # Assert Users exist
     expected_nodes = {

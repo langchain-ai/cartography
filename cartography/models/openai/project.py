@@ -36,6 +36,16 @@ class OpenAIProjectNodeProperties(CartographyNodeProperties):
         "status",
         description="Project status: active or archived.",
     )
+    data_retention: PropertyRef = PropertyRef(
+        "data_retention",
+        description=(
+            "Project data retention control: `organization_default` (inherits "
+            "the organization's `data_retention`), `none`, `zero_data_retention`, "
+            "`modified_abuse_monitoring`, `enhanced_zero_data_retention`, or "
+            "`enhanced_modified_abuse_monitoring`. Null when the Admin API key "
+            "cannot read it."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

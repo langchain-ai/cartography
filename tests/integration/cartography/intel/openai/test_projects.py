@@ -34,6 +34,11 @@ def _ensure_local_neo4j_has_test_projects(neo4j_session):
 
 @patch.object(
     cartography.intel.openai.projects,
+    "get_project_data_retention",
+    return_value="organization_default",
+)
+@patch.object(
+    cartography.intel.openai.projects,
     "get_project_users",
     return_value=tests.data.openai.projects.OPENAI_PROJECTS_MEMBERS,
 )
@@ -42,7 +47,9 @@ def _ensure_local_neo4j_has_test_projects(neo4j_session):
     "get",
     return_value=tests.data.openai.projects.OPENAI_PROJECTS,
 )
-def test_load_openai_projects(mock_api, mock_api_members, neo4j_session):
+def test_load_openai_projects(
+    mock_api, mock_api_members, mock_data_retention, neo4j_session
+):
     """
     Ensure that projects actually get loaded
     """
@@ -64,14 +71,18 @@ def test_load_openai_projects(mock_api, mock_api_members, neo4j_session):
         ORG_ID=TEST_ORG_ID,
     )
 
-    # Assert Projects exist
+    # Assert Projects exist with their data retention control
     expected_nodes = {
         (
             "proj_Eicie2Iid8ii4aiNg8va",
             "Springfield Nuclear Power Plant",
+            "organization_default",
         ),
     }
-    assert check_nodes(neo4j_session, "OpenAIProject", ["id", "name"]) == expected_nodes
+    assert (
+        check_nodes(neo4j_session, "OpenAIProject", ["id", "name", "data_retention"])
+        == expected_nodes
+    )
 
     # Assert projects are linked to the correct org
     expected_rels = {
@@ -148,6 +159,11 @@ REMOVED_PROJECT_API_KEY = {
 
 @patch.object(
     cartography.intel.openai.projects,
+    "get_project_data_retention",
+    return_value="organization_default",
+)
+@patch.object(
+    cartography.intel.openai.projects,
     "get_project_users",
     return_value=tests.data.openai.projects.OPENAI_PROJECTS_MEMBERS,
 )
@@ -159,6 +175,7 @@ REMOVED_PROJECT_API_KEY = {
 def test_project_cleanup_removes_keys_and_service_accounts_of_removed_project(
     mock_api,
     mock_api_members,
+    mock_data_retention,
     neo4j_session,
 ):
     """
@@ -231,6 +248,16 @@ def test_project_cleanup_removes_keys_and_service_accounts_of_removed_project(
 
 @patch.object(cartography.intel.openai.adminapikeys, "get", return_value=[])
 @patch.object(
+    cartography.intel.openai.projects,
+    "get_project_data_retention",
+    return_value="organization_default",
+)
+@patch.object(
+    cartography.intel.openai.users,
+    "get_organization_data_retention",
+    return_value="zero_data_retention",
+)
+@patch.object(
     cartography.intel.openai.apikeys,
     "get",
     return_value=tests.data.openai.apikeys.OPENAI_APIKEYS,
@@ -261,6 +288,8 @@ def test_sync_sweeps_keys_and_service_accounts_orphaned_by_older_versions(
     mock_project_users,
     mock_serviceaccounts,
     mock_apikeys,
+    mock_org_data_retention,
+    mock_project_data_retention,
     mock_adminapikeys,
     neo4j_session,
 ):

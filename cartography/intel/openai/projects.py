@@ -7,6 +7,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.openai.util import get_data_retention
 from cartography.intel.openai.util import paginated_get
 from cartography.models.openai.project import OpenAIProjectSchema
 from cartography.util import timeit
@@ -37,6 +38,11 @@ def sync(
             project["users"].append(user["id"])
             if user["role"] == "owner":
                 project["admins"].append(user["id"])
+        project["data_retention"] = get_project_data_retention(
+            api_session,
+            common_job_parameters["BASE_URL"],
+            project["id"],
+        )
     load_projects(neo4j_session, projects, ORG_ID, common_job_parameters["UPDATE_TAG"])
     cleanup(neo4j_session, common_job_parameters)
     return projects
@@ -66,6 +72,19 @@ def get_project_users(
             f"{base_url}/organization/projects/{project_id}/users",
             timeout=_TIMEOUT,
         )
+    )
+
+
+@timeit
+def get_project_data_retention(
+    api_session: requests.Session,
+    base_url: str,
+    project_id: str,
+) -> str | None:
+    return get_data_retention(
+        api_session,
+        f"{base_url}/organization/projects/{project_id}/data_retention",
+        timeout=_TIMEOUT,
     )
 
 

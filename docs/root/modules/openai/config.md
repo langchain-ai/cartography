@@ -10,6 +10,8 @@ Find the organization ID, such as `org-xxxxxxxxxx`, in the [organization setting
 
 Use a read-only Admin API key.
 
+Cartography also reads the organization and project data retention controls, such as zero data retention. If the key can't read them, Cartography logs a warning and leaves `data_retention` empty.
+
 ## Configure Cartography
 
 Provide these options:
