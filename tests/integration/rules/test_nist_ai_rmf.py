@@ -68,7 +68,17 @@ def _sync_openai(neo4j_session, update_tag, projects, admin_api_keys):
             "get",
             return_value=tests.data.openai.users.OPENAI_USERS,
         ),
+        patch.object(
+            cartography.intel.openai.users,
+            "get_organization_data_retention",
+            return_value=None,
+        ),
         patch.object(cartography.intel.openai.projects, "get", return_value=projects),
+        patch.object(
+            cartography.intel.openai.projects,
+            "get_project_data_retention",
+            return_value=None,
+        ),
         patch.object(
             cartography.intel.openai.projects,
             "get_project_users",

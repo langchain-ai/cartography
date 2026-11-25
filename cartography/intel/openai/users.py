@@ -7,6 +7,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.openai.util import get_data_retention
 from cartography.intel.openai.util import paginated_get
 from cartography.models.openai.organization import OpenAIOrganizationSchema
 from cartography.models.openai.user import OpenAIUserSchema
@@ -27,7 +28,17 @@ def sync(
         api_session,
         common_job_parameters["BASE_URL"],
     )
-    load_users(neo4j_session, users, ORG_ID, common_job_parameters["UPDATE_TAG"])
+    data_retention = get_organization_data_retention(
+        api_session,
+        common_job_parameters["BASE_URL"],
+    )
+    load_users(
+        neo4j_session,
+        users,
+        ORG_ID,
+        common_job_parameters["UPDATE_TAG"],
+        data_retention=data_retention,
+    )
     cleanup(neo4j_session, common_job_parameters)
 
 
@@ -42,16 +53,29 @@ def get(
 
 
 @timeit
+def get_organization_data_retention(
+    api_session: requests.Session,
+    base_url: str,
+) -> str | None:
+    return get_data_retention(
+        api_session,
+        f"{base_url}/organization/data_retention",
+        timeout=_TIMEOUT,
+    )
+
+
+@timeit
 def load_users(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
     ORG_ID: str,
     update_tag: int,
+    data_retention: str | None = None,
 ) -> None:
     load(
         neo4j_session,
         OpenAIOrganizationSchema(),
-        [{"id": ORG_ID}],
+        [{"id": ORG_ID, "data_retention": data_retention}],
         lastupdated=update_tag,
     )
     load(

@@ -1,7 +1,10 @@
+import logging
 from typing import Any
 from typing import Generator
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 def paginated_get(
@@ -43,3 +46,21 @@ def paginated_get(
             timeout=timeout,
             after=result.get("last_id"),
         )
+
+
+def get_data_retention(
+    api_session: requests.Session,
+    url: str,
+    timeout: tuple[int, int],
+) -> str | None:
+    """Return the data retention type at `url`, or None if the key cannot read it."""
+    req = api_session.get(url, timeout=timeout)
+    if req.status_code in (403, 404):
+        logger.warning(
+            "Cannot read OpenAI data retention from %s (HTTP %d); skipping.",
+            url,
+            req.status_code,
+        )
+        return None
+    req.raise_for_status()
+    return req.json().get("type")
