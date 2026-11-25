@@ -431,6 +431,8 @@ class Config:
     :param anthropic_service_account_id: Anthropic service account ID (svac_...). Optional.
     :type anthropic_workspace_id: string
     :param anthropic_workspace_id: Anthropic workspace ID, needed when the federation rule covers several workspaces. Optional.
+    :type anthropic_compliance_apikey: string
+    :param anthropic_compliance_apikey: Anthropic Compliance Access Key used to read organization settings. Optional.
     :type socketdev_token: str
     :param socketdev_token: Socket.dev API token. Optional.
     :type airbyte_client_id: str
@@ -939,6 +941,7 @@ class Config:
         anthropic_organization_id: str | None = None,
         anthropic_service_account_id: str | None = None,
         anthropic_workspace_id: str | None = None,
+        anthropic_compliance_apikey: str | None = None,
         onepassword_source: str | None = None,
         sentra_api_key: str | None = None,
         sentra_api_url: str | None = None,
@@ -1156,6 +1159,7 @@ class Config:
         self.anthropic_organization_id = anthropic_organization_id
         self.anthropic_service_account_id = anthropic_service_account_id
         self.anthropic_workspace_id = anthropic_workspace_id
+        self.anthropic_compliance_apikey = anthropic_compliance_apikey
         self.subimage_client_id = subimage_client_id
         self.subimage_client_secret = subimage_client_secret
         self.subimage_tenant_url = subimage_tenant_url

@@ -1,7 +1,9 @@
 # Anthropic Configuration
 
 Cartography authenticates to the Anthropic Admin API with an Admin API key or
-with workload identity federation. Choose one.
+with workload identity federation. Choose one. You can also add a Compliance
+Access Key to read organization settings, such as zero data retention, or use
+that key on its own.
 
 ## Option 1: Admin API key
 
@@ -60,3 +62,30 @@ token again only after the token file holds a new one. Give the federation rule
 a token lifetime that's longer than a sync, or read the token from a file that
 your platform rotates in place, such as a projected Kubernetes service account
 token.
+
+## Optional: Compliance Access Key
+
+A [Compliance Access Key](https://platform.claude.com/docs/en/manage-claude/compliance-api-access)
+lets Cartography read each organization's
+[effective settings](https://platform.claude.com/docs/en/api/http/compliance/organizations/settings/retrieve)
+and record whether zero data retention is in place for the Claude API and for
+Claude Code. Compliance Access Keys are available to organizations in a Claude
+Enterprise tenant.
+
+1. In claude.ai, go to **Organization settings > API** and create a key with
+   only the `read:compliance_org_data` scope. Don't add
+   `read:compliance_user_data`: it also reads chats, files, and session
+   transcripts.
+1. Store the key in an environment variable, and pass the variable's name to
+   Cartography:
+
+   ```bash
+   cartography \
+     --selected-modules anthropic \
+     --anthropic-compliance-apikey-env-var ANTHROPIC_COMPLIANCE_ACCESS_KEY
+   ```
+
+You can pass the key alone or together with an Admin API key or workload
+identity federation. On its own, Cartography syncs only the organizations that
+the key covers and their settings. A key for the parent organization covers
+every linked organization.

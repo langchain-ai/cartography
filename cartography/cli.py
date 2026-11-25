@@ -2050,6 +2050,15 @@ class CLI:
                     hidden=PANEL_ANTHROPIC not in visible_panels,
                 ),
             ] = None,
+            anthropic_compliance_apikey_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-compliance-apikey-env-var",
+                    help="Environment variable name containing an Anthropic Compliance Access Key with the read:compliance_org_data scope, used to read organization settings such as zero data retention.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # Sentry Options
             # =================================================================
@@ -4026,6 +4035,15 @@ class CLI:
                     anthropic_apikey_env_var,
                 )
                 anthropic_apikey = os.environ.get(anthropic_apikey_env_var)
+            anthropic_compliance_apikey = None
+            if anthropic_compliance_apikey_env_var:
+                logger.debug(
+                    "Reading Anthropic Compliance Access Key from environment variable %s",
+                    anthropic_compliance_apikey_env_var,
+                )
+                anthropic_compliance_apikey = os.environ.get(
+                    anthropic_compliance_apikey_env_var
+                )
 
             # Read Sentry token
             sentry_token = None
@@ -4574,6 +4592,7 @@ class CLI:
                 anthropic_organization_id=anthropic_organization_id,
                 anthropic_service_account_id=anthropic_service_account_id,
                 anthropic_workspace_id=anthropic_workspace_id,
+                anthropic_compliance_apikey=anthropic_compliance_apikey,
                 sentry_token=sentry_token,
                 sentry_org=sentry_org,
                 sentry_host=sentry_host,
