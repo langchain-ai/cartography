@@ -894,6 +894,7 @@ def _module_title(module: str) -> str:
     title_overrides = {
         "aibom": "AIBOM",
         "aws": "AWS",
+        "fireworks": "Fireworks AI",
         "gcp": "GCP",
         "oci": "OCI",
         "onepassword": "1Password",

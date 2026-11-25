@@ -397,7 +397,36 @@ neon_mapping = OntologyMapping(
 )
 
 
+fireworks_mapping = OntologyMapping(
+    module_name="fireworks",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FireworksApiKey",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    special_handling="coalesce",
+                    extra={"fields": ["prefix"]},
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="last_used_at", node_field="last_used_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="expires_at", node_field="expires_at"
+                ),
+            ],
+        ),
+    ],
+)
+
+
 APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "fireworks": fireworks_mapping,
     "zendesk": zendesk_mapping,
     "anthropic": anthropic_mapping,
     "github": github_mapping,

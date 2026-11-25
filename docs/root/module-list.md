@@ -23,6 +23,7 @@ modules/databricks/index
 modules/digitalocean/index
 modules/docker_scout/index
 modules/duo/index
+modules/fireworks/index
 modules/gcp/index
 modules/github/index
 modules/gitlab/index

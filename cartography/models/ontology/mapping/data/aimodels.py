@@ -156,7 +156,66 @@ aibom_mapping = OntologyMapping(
     ],
 )
 
+# Fireworks AI model state
+_FIREWORKS_MODEL_STATUS = {
+    "READY": "active",
+    "UPLOADING": "creating",
+}
+
+# Fireworks AI model kind. Account-owned models are uploaded or trained by the
+# customer, so none of them is a foundation model.
+_FIREWORKS_MODEL_TYPE = {
+    "HF_BASE_MODEL": "custom",
+    "FLUMINA_BASE_MODEL": "custom",
+    "CUSTOM_MODEL": "custom",
+    "EMBEDDING_MODEL": "custom",
+    "SNAPSHOT_MODEL": "custom",
+    "HF_PEFT_ADDON": "fine-tuned",
+    "HF_TEFT_ADDON": "fine-tuned",
+    "FLUMINA_ADDON": "fine-tuned",
+    "DRAFT_ADDON": "fine-tuned",
+    "LIVE_MERGE": "fine-tuned",
+}
+
+fireworks_mapping = OntologyMapping(
+    module_name="fireworks",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FireworksModel",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="display_name",
+                    special_handling="coalesce",
+                    extra={"fields": ["model_id"]},
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="provider",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "fireworks"},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _FIREWORKS_MODEL_STATUS},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="kind",
+                    special_handling="mapping",
+                    extra={"map": _FIREWORKS_MODEL_TYPE},
+                ),
+            ],
+        ),
+    ],
+)
+
+
 AIMODELS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "fireworks": fireworks_mapping,
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "aibom": aibom_mapping,

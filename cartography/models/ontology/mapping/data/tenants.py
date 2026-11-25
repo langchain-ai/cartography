@@ -936,7 +936,44 @@ neon_mapping = OntologyMapping(
 )
 
 
+# Fireworks AI account suspension state
+_FIREWORKS_ACCOUNT_SUSPEND_STATE = {
+    "UNSUSPENDED": "active",
+    "FAILED_PAYMENTS": "suspended",
+    "CREDIT_DEPLETED": "suspended",
+    "MONTHLY_SPEND_LIMIT_EXCEEDED": "suspended",
+    "BLOCKED_BY_ABUSE_RULE": "suspended",
+}
+
+# Fireworks AI
+fireworks_mapping = OntologyMapping(
+    module_name="fireworks",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FireworksAccount",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="display_name",
+                    special_handling="coalesce",
+                    extra={"fields": ["id"]},
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="suspend_state",
+                    special_handling="mapping",
+                    extra={"map": _FIREWORKS_ACCOUNT_SUSPEND_STATE},
+                ),
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "fireworks": fireworks_mapping,
     "jira": OntologyMapping(
         module_name="jira",
         nodes=[

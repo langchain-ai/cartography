@@ -103,6 +103,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Crowdstrike Falcon](https://docs.cartography.dev/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
 - [DigitalOcean](https://docs.cartography.dev/modules/digitalocean/index.html)
 - [Duo](https://docs.cartography.dev/modules/duo/index.html) - Users, Groups, Endpoints
+- [Fireworks AI](https://docs.cartography.dev/modules/fireworks/index.html) - Account (policy settings, Zero Data Retention, data residency), User, ServiceAccount, ApiKey, Secret, Model, Deployment, Dataset, IdentityProvider
 - [GitHub](https://docs.cartography.dev/modules/github/index.html) - repos, branches, users, teams, dependency graph manifests, dependencies, organization and repository security settings, verified domains, installed GitHub Apps, webhooks
 - [Google Cloud Platform](https://docs.cartography.dev/modules/gcp/index.html) - Artifact Registry, Bigtable, Cloud Functions, Cloud Resource Manager, Cloud Run, Cloud SQL, Compute including SSL policies and target proxies, DNS, IAM, KMS, Secret Manager, Storage, Google Kubernetes Engine, Vertex AI
 - [Google Workspace](https://docs.cartography.dev/modules/googleworkspace/index.html) - users, groups, devices, OAuth apps

@@ -1,0 +1,37 @@
+FIREWORKS_IDENTITY_PROVIDERS = [
+    {
+        "name": "accounts/springfield-nuclear/identityProviders/okta",
+        "displayName": "Okta",
+        "createTime": "2025-01-20T10:00:00Z",
+        "updateTime": "2025-06-01T10:00:00Z",
+        "samlConfig": {
+            "metadataUrl": "https://springfield.okta.example/app/metadata",
+            "metadataXml": "<EntityDescriptor>redacted</EntityDescriptor>",
+            "samlEmailAttribute": "email",
+        },
+        "tenantDomains": ["springfield-nuclear.example"],
+        "state": "READY",
+        "status": {"code": "OK", "message": ""},
+        "domainUrl": "https://springfield-nuclear.fireworks.ai",
+        "enableJitUserProvisioning": False,
+        "enforceSso": True,
+        "enableIdpInitiatedSso": True,
+    },
+    {
+        "name": "accounts/springfield-nuclear/identityProviders/google",
+        "displayName": "Google Workspace",
+        "createTime": "2025-01-21T10:00:00Z",
+        "updateTime": "2025-01-21T10:00:00Z",
+        "oidcConfig": {
+            "issuerUrl": "https://accounts.google.com",
+            "clientId": "1234.apps.googleusercontent.com",
+            "clientSecret": "oidc-client-secret-value",
+        },
+        "tenantDomains": ["springfield-nuclear.example"],
+        "state": "READY",
+        "status": {"code": "OK", "message": ""},
+        "enableJitUserProvisioning": True,
+        "jitDefaultRole": "inference-user",
+        "enforceSso": False,
+    },
+]
