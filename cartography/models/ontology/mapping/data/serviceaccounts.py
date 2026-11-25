@@ -172,7 +172,28 @@ onepassword_mapping = OntologyMapping(
 )
 
 
+datadog_mapping = OntologyMapping(
+    module_name="datadog",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="DatadogServiceAccount",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="disabled",
+                    special_handling="invert_boolean",
+                ),
+            ],
+        ),
+    ],
+)
+
 SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "datadog": datadog_mapping,
     "gcp": gcp_mapping,
     "kubernetes": kubernetes_mapping,
     "openai": openai_mapping,

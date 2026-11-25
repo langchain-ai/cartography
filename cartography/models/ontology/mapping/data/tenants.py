@@ -936,7 +936,25 @@ neon_mapping = OntologyMapping(
 )
 
 
+datadog_mapping = OntologyMapping(
+    module_name="datadog",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="DatadogOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not ingested; the current-user response doesn't
+                # reliably include organization state.
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "datadog": datadog_mapping,
     "jira": OntologyMapping(
         module_name="jira",
         nodes=[

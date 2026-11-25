@@ -61,6 +61,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
         "create-indexes": _LazyStage("cartography.intel.create_indexes", "run"),
         "airbyte": _LazyStage("cartography.intel.airbyte", "start_airbyte_ingestion"),
+        "datadog": _LazyStage("cartography.intel.datadog", "start_datadog_ingestion"),
         "databricks": _LazyStage(
             "cartography.intel.databricks", "start_databricks_ingestion"
         ),

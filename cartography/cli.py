@@ -79,6 +79,7 @@ PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_LANGSMITH = "LangSmith Options"
+PANEL_DATADOG = "Datadog Options"
 PANEL_DATABRICKS = "Databricks Options"
 PANEL_BBOT = "BBOT Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
@@ -160,6 +161,7 @@ MODULE_PANELS = {
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
     "langsmith": PANEL_LANGSMITH,
+    "datadog": PANEL_DATADOG,
     "databricks": PANEL_DATABRICKS,
     "bbot": PANEL_BBOT,
     "docker_scout": PANEL_DOCKER_SCOUT,
@@ -2192,6 +2194,48 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Datadog Options
+            # =================================================================
+            datadog_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--datadog-api-key-env-var",
+                    help=(
+                        "Environment variable name containing a Datadog API key. "
+                        "Required with an application key; not needed with a "
+                        "personal or service access token."
+                    ),
+                    rich_help_panel=PANEL_DATADOG,
+                    hidden=PANEL_DATADOG not in visible_panels,
+                ),
+            ] = None,
+            datadog_app_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--datadog-app-key-env-var",
+                    help=(
+                        "Environment variable name containing a Datadog application "
+                        "key, personal access token, or service access token. "
+                        "Enables the Datadog module."
+                    ),
+                    rich_help_panel=PANEL_DATADOG,
+                    hidden=PANEL_DATADOG not in visible_panels,
+                ),
+            ] = None,
+            datadog_site: Annotated[
+                str,
+                typer.Option(
+                    "--datadog-site",
+                    help=(
+                        "Datadog site of the organization, for example datadoghq.com, "
+                        "us3.datadoghq.com, us5.datadoghq.com, datadoghq.eu, "
+                        "ap1.datadoghq.com, or ddog-gov.com."
+                    ),
+                    rich_help_panel=PANEL_DATADOG,
+                    hidden=PANEL_DATADOG not in visible_panels,
+                ),
+            ] = "datadoghq.com",
+            # =================================================================
             # Databricks Options
             # =================================================================
             databricks_workspace_url: Annotated[
@@ -4071,6 +4115,22 @@ class CLI:
                 )
                 langsmith_pat = os.environ.get(langsmith_pat_env_var)
 
+            # Read Datadog credentials
+            datadog_api_key = None
+            if datadog_api_key_env_var:
+                logger.debug(
+                    "Reading Datadog API key from environment variable %s",
+                    datadog_api_key_env_var,
+                )
+                datadog_api_key = os.environ.get(datadog_api_key_env_var)
+            datadog_app_key = None
+            if datadog_app_key_env_var:
+                logger.debug(
+                    "Reading Datadog application key from environment variable %s",
+                    datadog_app_key_env_var,
+                )
+                datadog_app_key = os.environ.get(datadog_app_key_env_var)
+
             # Read Databricks credentials
             databricks_token = None
             if databricks_token_env_var:
@@ -4588,6 +4648,9 @@ class CLI:
                 langsmith_api_url=langsmith_api_url,
                 langsmith_host_api_url=langsmith_host_api_url,
                 langsmith_org_id=langsmith_org_id,
+                datadog_api_key=datadog_api_key,
+                datadog_app_key=datadog_app_key,
+                datadog_site=datadog_site,
                 databricks_workspace_url=databricks_workspace_url,
                 databricks_token=databricks_token,
                 databricks_client_id=databricks_client_id,

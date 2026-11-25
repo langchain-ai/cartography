@@ -911,7 +911,36 @@ neon_mapping = OntologyMapping(
 )
 
 
+datadog_mapping = OntologyMapping(
+    module_name="datadog",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="DatadogUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="disabled",
+                    special_handling="invert_boolean",
+                ),
+                # has_mfa covers Datadog MFA only, not MFA enforced by a SAML
+                # identity provider.
+                OntologyFieldMapping(
+                    ontology_field="has_mfa", node_field="mfa_enabled"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="last_login_time"
+                ),
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "datadog": datadog_mapping,
     "jira": OntologyMapping(
         module_name="jira",
         nodes=[

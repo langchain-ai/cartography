@@ -101,6 +101,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [BigFix](https://docs.cartography.dev/modules/bigfix/index.html) - Computers
 - [Cloudflare](https://docs.cartography.dev/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
 - [Crowdstrike Falcon](https://docs.cartography.dev/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
+- [Datadog](https://docs.cartography.dev/modules/datadog/index.html) - Organization, users, service accounts, roles, API key, application key, and access token metadata
 - [DigitalOcean](https://docs.cartography.dev/modules/digitalocean/index.html)
 - [Duo](https://docs.cartography.dev/modules/duo/index.html) - Users, Groups, Endpoints
 - [GitHub](https://docs.cartography.dev/modules/github/index.html) - repos, branches, users, teams, dependency graph manifests, dependencies, organization and repository security settings, verified domains, installed GitHub Apps, webhooks

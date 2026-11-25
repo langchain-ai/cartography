@@ -456,6 +456,12 @@ class Config:
         key's user belongs to is synced. Optional.
     :type neon_base_url: str
     :param neon_base_url: Neon API base URL. Optional.
+    :type datadog_api_key: str
+    :param datadog_api_key: Datadog API key. Required with an application key; optional with an access token.
+    :type datadog_app_key: str
+    :param datadog_app_key: Datadog application key, personal access token, or service access token. Optional.
+    :type datadog_site: str
+    :param datadog_site: Datadog site, for example datadoghq.com or datadoghq.eu. Optional.
     :type databricks_workspace_url: str
     :param databricks_workspace_url: Databricks workspace URL, e.g. https://dbc-xxxx.cloud.databricks.com. Optional.
     :type databricks_token: str
@@ -793,6 +799,9 @@ class Config:
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
+        datadog_api_key: str | None = None,
+        datadog_app_key: str | None = None,
+        datadog_site: str | None = None,
         databricks_workspace_url=None,
         databricks_token=None,
         databricks_client_id=None,
@@ -1170,6 +1179,9 @@ class Config:
         self.neon_api_key = neon_api_key
         self.neon_org_ids = neon_org_ids
         self.neon_base_url = neon_base_url
+        self.datadog_api_key = datadog_api_key
+        self.datadog_app_key = datadog_app_key
+        self.datadog_site = datadog_site
         self.databricks_workspace_url = databricks_workspace_url
         self.databricks_token = databricks_token
         self.databricks_client_id = databricks_client_id
