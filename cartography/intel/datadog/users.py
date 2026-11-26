@@ -60,12 +60,12 @@ def transform(
     service_accounts = []
     for user in raw_users:
         attributes = user["attributes"]
-        # Copy an explicit allowlist of account fields. Profile and sign-in
-        # details, such as a person's name, title, icon, MFA state, and last
+        # Copy an explicit allowlist of account fields. A person is identified
+        # only by the opaque Datadog ID; their email address and profile and
+        # sign-in details, such as name, title, icon, MFA state, and last
         # sign-in, are never collected.
         identity = {
             "id": user["id"],
-            "email": attributes.get("email"),
             "status": attributes.get("status"),
             "disabled": attributes.get("disabled"),
             "created_at": attributes.get("created_at"),
@@ -73,8 +73,10 @@ def transform(
             "role_ids": relationship_ids(user, "roles"),
         }
         if attributes.get("service_account"):
-            # A service account's name identifies the integration, not a person.
+            # A service account's name and notification address identify the
+            # integration, not a person.
             identity["name"] = attributes.get("name")
+            identity["email"] = attributes.get("email")
             service_accounts.append(identity)
             continue
         users.append(identity)

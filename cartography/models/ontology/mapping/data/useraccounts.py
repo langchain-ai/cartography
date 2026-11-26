@@ -911,30 +911,7 @@ neon_mapping = OntologyMapping(
 )
 
 
-datadog_mapping = OntologyMapping(
-    module_name="datadog",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="DatadogUser",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="email", node_field="email", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="active",
-                    node_field="disabled",
-                    special_handling="invert_boolean",
-                ),
-                # fullname, has_mfa, lastactivity: Not collected. The module
-                # keeps only account identity and lifecycle, not profile or
-                # sign-in details.
-            ],
-        ),
-    ],
-)
-
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
-    "datadog": datadog_mapping,
     "jira": OntologyMapping(
         module_name="jira",
         nodes=[

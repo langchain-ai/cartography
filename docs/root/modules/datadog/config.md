@@ -6,8 +6,9 @@ accounts, its roles, which roles each account holds, and the permissions each
 role grants. It sends only `GET` requests.
 
 Cartography doesn't collect API keys, application keys, access tokens, or
-logs, and it doesn't collect profile or sign-in details such as a person's
-name, title, MFA state, or last sign-in.
+logs. It identifies people only by their opaque Datadog user ID and doesn't
+collect their email address or profile and sign-in details such as name,
+title, MFA state, or last sign-in.
 
 ## Authentication
 

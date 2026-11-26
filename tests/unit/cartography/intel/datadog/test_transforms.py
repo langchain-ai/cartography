@@ -31,7 +31,6 @@ def test_users_transform_keeps_identity_fields_only():
     # Assert
     assert {key for person in people for key in person} == {
         "id",
-        "email",
         "status",
         "disabled",
         "created_at",
@@ -50,6 +49,8 @@ def test_users_transform_keeps_identity_fields_only():
     }
     values = {str(value) for person in people for value in person.values()}
     assert not values & set(fixtures.PROFILE_SENTINELS)
+    assert not values & set(fixtures.HUMAN_EMAILS)
+    assert not any("@" in value for value in values)
 
 
 def test_roles_transform_resolves_permission_names():

@@ -27,6 +27,7 @@ CARTOGRAPHY_SA_ID = "sa-cartography-0002"
 # Profile and sign-in details that Datadog returns for people. Tests assert
 # that none reaches the graph.
 PROFILE_ATTRIBUTES = (
+    "email",
     "name",
     "handle",
     "title",
@@ -200,6 +201,13 @@ GENERATED_USERS = [
 ]
 
 USERS = NAMED_USERS + GENERATED_USERS
+
+# Email addresses of people, which must never reach the graph.
+HUMAN_EMAILS = tuple(
+    user["attributes"]["email"]
+    for user in USERS
+    if not user["attributes"]["service_account"]
+)
 
 CURRENT_USER = {
     "data": copy.deepcopy(NAMED_USERS[4]),

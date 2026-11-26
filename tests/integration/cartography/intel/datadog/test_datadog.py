@@ -24,7 +24,6 @@ DATADOG_LABELS = [
 
 USER_PROPERTIES = {
     "id",
-    "email",
     "status",
     "disabled",
     "created_at",
@@ -132,14 +131,14 @@ def test_sync_datadog(neo4j_session):
         for row in check_nodes(
             neo4j_session,
             "DatadogUser",
-            ["id", "email", "status", "disabled"],
+            ["id", "status", "disabled"],
         )
         if not row[0].startswith("user-gen-")
     }
     assert named_users == {
-        (fixtures.ALICE_ID, "alice@example.com", "Active", False),
-        (fixtures.BOB_ID, "bob@example.com", "Disabled", True),
-        (fixtures.CAROL_ID, "carol@example.com", "Pending", False),
+        (fixtures.ALICE_ID, "Active", False),
+        (fixtures.BOB_ID, "Disabled", True),
+        (fixtures.CAROL_ID, "Pending", False),
     }
     assert check_nodes(
         neo4j_session,
@@ -154,10 +153,8 @@ def test_sync_datadog(neo4j_session):
             False,
         ),
     }
-    assert (
-        _count(neo4j_session, "DatadogUser:UserAccount")
-        == 3 + fixtures.GENERATED_USER_COUNT
-    )
+    # People carry no email, so they aren't mapped to the UserAccount ontology.
+    assert _count(neo4j_session, "DatadogUser:UserAccount") == 0
     assert _count(neo4j_session, "DatadogServiceAccount:ServiceAccount") == 2
     assert _count(neo4j_session, "DatadogRole:PermissionRole") == 4
 
@@ -235,6 +232,53 @@ def test_sync_datadog_stores_no_profile_details(neo4j_session):
         assert not set(fixtures.PROFILE_ATTRIBUTES) & set(props)
         for value in props.values():
             assert str(value) not in fixtures.PROFILE_SENTINELS
+
+
+def test_sync_datadog_stores_no_human_email(neo4j_session):
+    # Arrange
+    _reset(neo4j_session)
+
+    # Act
+    _run(neo4j_session, FakeDatadogAPI(), TEST_UPDATE_TAG)
+
+    # Assert
+    # No property on any Datadog node or relationship, including derived
+    # ontology fields, holds a person's address. Other modules' test data can
+    # reuse the same example addresses, so the scan is limited to Datadog.
+    records = neo4j_session.run(
+        """
+        MATCH (n)
+        WHERE any(label IN labels(n) WHERE label STARTS WITH 'Datadog')
+        RETURN properties(n) AS props
+        UNION ALL
+        MATCH (a)-[r]->(b)
+        WHERE any(label IN labels(a) + labels(b) WHERE label STARTS WITH 'Datadog')
+        RETURN properties(r) AS props
+        """,
+    ).data()
+    assert records
+    stored = " ".join(
+        str(value) for record in records for value in record["props"].values()
+    )
+    for email in fixtures.HUMAN_EMAILS:
+        assert email not in stored
+    # Human memberships are keyed by the opaque Datadog user ID.
+    assert check_rels(
+        neo4j_session,
+        "DatadogUser",
+        "id",
+        "DatadogRole",
+        "id",
+        "HAS_ROLE",
+    ) >= {
+        (fixtures.ALICE_ID, fixtures.ADMIN_ROLE_ID),
+        (fixtures.BOB_ID, fixtures.STANDARD_ROLE_ID),
+    }
+    # Service accounts keep their notification address.
+    assert check_nodes(neo4j_session, "DatadogServiceAccount", ["email"]) == {
+        ("ci-deployer@example.com",),
+        ("security@example.com",),
+    }
 
 
 def test_complete_resync_removes_stale_nodes(neo4j_session):

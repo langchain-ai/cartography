@@ -10,7 +10,7 @@ doesn't cover.
 | Node or relationship | Fields |
 | --- | --- |
 | `DatadogOrganization` | ID, name, public ID, API base URL |
-| `DatadogUser` | ID, email, status, disabled, created and modified times |
+| `DatadogUser` | Opaque Datadog user ID, status, disabled, created and modified times |
 | `DatadogServiceAccount` | ID, name, email, status, disabled, created and modified times |
 | `DatadogRole` | ID, name, created and modified times, user count, permission names, inherited managed roles |
 | `HAS_ROLE` | Role memberships of users and service accounts |
@@ -18,8 +18,11 @@ doesn't cover.
 Transforms copy an explicit list of fields, so other attributes in Datadog's
 responses never reach the graph. In particular, Cartography doesn't collect:
 
-- Profile and sign-in details: a person's name, handle, title, icon,
+- Personal details: a person's email address, name, handle, title, icon,
   verification state, MFA state, allowed login methods, and last sign-in.
+  People are identified only by their opaque Datadog user ID, so
+  `DatadogUser` nodes don't carry the `UserAccount` ontology label and aren't
+  linked to canonical `User` nodes.
 - Credentials: API keys, application keys, personal access tokens, and
   service access tokens, including their metadata.
 - Logs or any other telemetry.
@@ -62,3 +65,6 @@ API limits:
   unique, so `DatadogRole` doesn't record whether a role is built in.
 - **Other organizations**: A user's memberships in other organizations aren't
   synced. Run Cartography with a credential from each organization.
+- **Identity correlation**: Without email addresses, a Datadog user can't be
+  matched to the same person in other modules. Resolve a user ID to a person
+  in Datadog itself.
