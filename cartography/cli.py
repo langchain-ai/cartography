@@ -103,6 +103,7 @@ PANEL_NOTION = "Notion Options"
 PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
+PANEL_WORKSHOP = "Workshop Options"
 PANEL_WORKOS = "WorkOS Options"
 PANEL_ZOOM = "Zoom Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
@@ -184,6 +185,7 @@ MODULE_PANELS = {
     "notion": PANEL_NOTION,
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
+    "workshop": PANEL_WORKSHOP,
     "workos": PANEL_WORKOS,
     "vercel": PANEL_VERCEL,
     "supabase": PANEL_SUPABASE,
@@ -3113,6 +3115,33 @@ class CLI:
             # =================================================================
             # WorkOS Options
             # =================================================================
+            workshop_api_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--workshop-api-url",
+                    help="Workshop HTTPS tenant API origin.",
+                    rich_help_panel=PANEL_WORKSHOP,
+                    hidden=PANEL_WORKSHOP not in visible_panels,
+                ),
+            ] = None,
+            workshop_apikey_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--workshop-apikey-env-var",
+                    help="Environment variable containing a Workshop read:settings API key.",
+                    rich_help_panel=PANEL_WORKSHOP,
+                    hidden=PANEL_WORKSHOP not in visible_panels,
+                ),
+            ] = None,
+            workshop_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--workshop-tenant-id",
+                    help="Stable unique scope for this Workshop tenant.",
+                    rich_help_panel=PANEL_WORKSHOP,
+                    hidden=PANEL_WORKSHOP not in visible_panels,
+                ),
+            ] = None,
             workos_apikey_env_var: Annotated[
                 str | None,
                 typer.Option(
@@ -4681,6 +4710,13 @@ class CLI:
                 slack_token=slack_token,
                 slack_teams=slack_teams,
                 slack_channels_memberships=slack_channels_memberships,
+                workshop_api_url=workshop_api_url,
+                workshop_api_key=(
+                    os.environ.get(workshop_apikey_env_var)
+                    if workshop_apikey_env_var
+                    else None
+                ),
+                workshop_tenant_id=workshop_tenant_id,
                 workos_api_key=workos_api_key,
                 workos_client_id=workos_client_id,
                 ubuntu_security_enabled=ubuntu_security_enabled,
