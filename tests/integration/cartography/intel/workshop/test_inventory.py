@@ -7,6 +7,8 @@ from cartography.config import Config
 from cartography.intel.workshop import start_workshop_ingestion
 from tests.data.workshop import API_KEY
 from tests.data.workshop import API_URL
+from tests.data.workshop import GROUP_MEMBERS
+from tests.data.workshop import GROUPS
 from tests.data.workshop import HOSTS
 from tests.data.workshop import response
 from tests.data.workshop import SETTINGS
@@ -21,6 +23,7 @@ LABELS = [
     "WorkshopClientMode",
     "WorkshopHost",
     "WorkshopUser",
+    "WorkshopGroup",
 ]
 
 
@@ -38,16 +41,27 @@ def read(method, data):
         "ListHosts": "hosts",
         "ListUsers": "users",
         "ListTags": "tags",
+        "ListGroups": "groups",
+        "ListGroupMembers": "members",
     }[method]
     return [response({field: data}), response({})] if data else [response({})]
 
 
-def full_read(settings=SETTINGS, hosts=HOSTS, users=USERS, tags=TAGS):
+def full_read(
+    settings=SETTINGS, hosts=HOSTS, users=USERS, tags=TAGS, groups=(), members=None
+):
+    memberships = GROUP_MEMBERS if members is None else members
     return (
         read("ListSyncSettings", settings)
         + read("ListHosts", hosts)
         + read("ListUsers", users)
         + read("ListTags", tags)
+        + read("ListGroups", groups)
+        + [
+            item
+            for group in groups
+            for item in read("ListGroupMembers", memberships[group["id"]])
+        ]
     )
 
 
@@ -74,6 +88,137 @@ def snapshot(session):
         labels=LABELS,
     ).data()
     return sorted(json.dumps(record, sort_keys=True) for record in nodes + edges)
+
+
+def test_group_membership_tags_and_tenant_scoped_cleanup(mocker, neo4j_session):
+    # Arrange
+    get = mocker.patch("cartography.intel.workshop.inventory.requests.get")
+    mocker.patch("cartography.intel.workshop.sync_settings.requests.get", new=get)
+    get.side_effect = full_read(groups=GROUPS) * 3
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 1)
+    run_sync(neo4j_session, "tenant-b", 1)
+    before = snapshot(neo4j_session)
+    run_sync(neo4j_session, "tenant-a", 1)
+
+    # Assert
+    assert snapshot(neo4j_session) == before
+    assert check_nodes(
+        neo4j_session,
+        "WorkshopGroup",
+        ["tenant_id", "group_id", "idp_id", "tags_managed"],
+    ) == {
+        (tenant, group["id"], group["idpId"], True)
+        for tenant in ("tenant-a", "tenant-b")
+        for group in GROUPS
+    }
+    assert check_rels(
+        neo4j_session, "WorkshopTenant", "id", "WorkshopGroup", "id", "RESOURCE"
+    ) == {
+        (tenant, json.dumps([tenant, group["id"]], separators=(",", ":")))
+        for tenant in ("tenant-a", "tenant-b")
+        for group in GROUPS
+    }
+    assert check_rels(
+        neo4j_session, "WorkshopUser", "id", "WorkshopGroup", "id", "MEMBER_OF"
+    ) == {
+        (
+            json.dumps([tenant, USERS[0]["id"]], separators=(",", ":")),
+            json.dumps([tenant, group["id"]], separators=(",", ":")),
+        )
+        for tenant in ("tenant-a", "tenant-b")
+        for group in GROUPS
+    }
+    assert check_rels(
+        neo4j_session, "WorkshopGroup", "id", "WorkshopTag", "id", "HAS_TAG"
+    ) == {
+        (
+            json.dumps([tenant, group["id"]], separators=(",", ":")),
+            json.dumps([tenant, tag], separators=(",", ":")),
+        )
+        for tenant in ("tenant-a", "tenant-b")
+        for group in GROUPS
+        for tag in group["tags"]
+    }
+    assert not neo4j_session.run(
+        "MATCH (:WorkshopTag {tag: 'synthetic-group-only'})-[:CONFIGURED_CLIENT_MODE]->() RETURN 1"
+    ).data()
+
+    # Arrange
+    get.side_effect = full_read(
+        groups=[{**GROUPS[0], "tags": []}], members={GROUPS[0]["id"]: []}
+    )
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 2)
+
+    # Assert
+    assert check_nodes(neo4j_session, "WorkshopGroup", ["tenant_id", "group_id"]) == {
+        ("tenant-a", GROUPS[0]["id"]),
+        *(("tenant-b", group["id"]) for group in GROUPS),
+    }
+    assert (
+        len(
+            check_rels(
+                neo4j_session, "WorkshopUser", "id", "WorkshopGroup", "id", "MEMBER_OF"
+            )
+        )
+        == 12
+    )
+    assert (
+        len(
+            check_rels(
+                neo4j_session, "WorkshopGroup", "id", "WorkshopTag", "id", "HAS_TAG"
+            )
+        )
+        == 24
+    )
+    assert check_nodes(neo4j_session, "WorkshopTag", ["tenant_id", "tag"]) & {
+        ("tenant-a", "synthetic-group-only"),
+        ("tenant-b", "synthetic-group-only"),
+    } == {("tenant-b", "synthetic-group-only")}
+    assert not neo4j_session.run(
+        "MATCH (:WorkshopUser {tenant_id: 'tenant-a'})-[:MEMBER_OF]->() RETURN 1"
+    ).data()
+    assert not neo4j_session.run(
+        "MATCH (:WorkshopGroup {tenant_id: 'tenant-a'})-[:HAS_TAG]->() RETURN 1"
+    ).data()
+
+    # Arrange
+    get.side_effect = full_read()
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 3)
+
+    # Assert
+    assert check_nodes(neo4j_session, "WorkshopGroup", ["tenant_id"]) == {("tenant-b",)}
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        response({}, 403),
+        requests.Timeout(),
+        response({"more": True}),
+        response({"members": [{"id": "synthetic-missing-user"}], "more": False}),
+    ],
+)
+def test_late_group_read_failure_preserves_entire_graph(mocker, neo4j_session, failure):
+    # Arrange
+    get = mocker.patch("cartography.intel.workshop.inventory.requests.get")
+    mocker.patch("cartography.intel.workshop.sync_settings.requests.get", new=get)
+    get.side_effect = full_read(groups=GROUPS)
+    run_sync(neo4j_session, "tenant-a", 1)
+    before = snapshot(neo4j_session)
+    reads = full_read(groups=GROUPS, hosts=[{**HOSTS[0], "hostname": "changed"}])
+    reads[-2:] = [failure]
+    get.side_effect = reads
+
+    # Act and assert
+    with pytest.raises((ValueError, requests.RequestException)):
+        run_sync(neo4j_session, "tenant-a", 2)
+    assert snapshot(neo4j_session) == before
 
 
 def test_inventory_links_hosts_tags_and_users(mocker, neo4j_session):
@@ -207,7 +352,7 @@ def test_implicit_global_reuses_configured_tag_without_duplicate_edges(
     )
 
 
-@pytest.mark.parametrize("failure_index", [1, 2, 4, 6, 7])
+@pytest.mark.parametrize("failure_index", [1, 2, 4, 6, 7, 8])
 @pytest.mark.parametrize(
     "failure", [response({}, 403), requests.Timeout(), response({"hosts": None})]
 )

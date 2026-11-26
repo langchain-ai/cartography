@@ -105,3 +105,72 @@ class WorkshopHostSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [WorkshopHostTag(), WorkshopHostPrimaryUser()],
     )
+
+
+@dataclass(frozen=True)
+class WorkshopGroupTag(CartographyRelSchema):
+    """A directory group's reported tag assignment, not a resolved host policy."""
+
+    target_node_label: str = "WorkshopTag"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("tag_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_TAG"
+    properties: WorkshopRelationshipProperties = WorkshopRelationshipProperties()
+
+
+@dataclass(frozen=True)
+class WorkshopGroupMember(CartographyRelSchema):
+    """A directory user's membership from complete ListGroupMembers pagination."""
+
+    target_node_label: str = "WorkshopUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("member_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF"
+    properties: WorkshopRelationshipProperties = WorkshopRelationshipProperties()
+
+
+@dataclass(frozen=True)
+class WorkshopGroupProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "id", description="JSON tuple of tenant scope and directory group ID."
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    tenant_id: PropertyRef = PropertyRef(
+        "TENANT_ID", set_in_kwargs=True, description="Operator-configured tenant scope."
+    )
+    group_id: PropertyRef = PropertyRef(
+        "group_id", description="Opaque Workshop directory group ID."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Reported directory group name."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Reported directory group description."
+    )
+    directory_type: PropertyRef = PropertyRef(
+        "directory_type", description="Vendor directory type enum."
+    )
+    idp_id: PropertyRef = PropertyRef(
+        "idp_id",
+        description="Reported identity provider group ID; not used for cross-provider joins.",
+    )
+    tags_managed: PropertyRef = PropertyRef(
+        "tags_managed",
+        description="Whether group tags are managed, as reported by Workshop.",
+    )
+
+
+@dataclass(frozen=True)
+class WorkshopGroupSchema(CartographyNodeSchema):
+    """A local or synced directory group, not an SSO role assignment."""
+
+    label: str = "WorkshopGroup"
+    properties: WorkshopGroupProperties = WorkshopGroupProperties()
+    sub_resource_relationship: WorkshopTenantResource = WorkshopTenantResource()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [WorkshopGroupTag(), WorkshopGroupMember()],
+    )

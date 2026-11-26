@@ -7,6 +7,8 @@ import requests
 from cartography.intel.workshop import inventory
 from tests.data.workshop import API_KEY
 from tests.data.workshop import API_URL
+from tests.data.workshop import GROUP_MEMBERS
+from tests.data.workshop import GROUPS
 from tests.data.workshop import HOSTS
 from tests.data.workshop import response
 from tests.data.workshop import USERS
@@ -18,12 +20,17 @@ from tests.data.workshop import USERS
         ("ListHosts", "hosts", HOSTS),
         ("ListUsers", "users", USERS),
         ("ListTags", "tags", [{"tag": "synthetic"}]),
+        ("ListGroups", "groups", GROUPS),
+        ("ListGroupMembers", "members", USERS),
     ],
 )
 @pytest.mark.parametrize("terminal_more", [False, None])
 def test_numbered_paging_and_transport(mocker, method, field, items, terminal_more):
     # Arrange
-    identity = {"ListHosts": "uuid", "ListUsers": "id", "ListTags": "tag"}[method]
+    identity = (
+        "uuid" if method == "ListHosts" else "tag" if method == "ListTags" else "id"
+    )
+    kwargs = {"group_id": "synthetic-group"} if method == "ListGroupMembers" else {}
     next_items = [{**items[0], identity: "synthetic-next"}]
     pages = [{field: items, "more": True}, {field: next_items}]
     if terminal_more is False:
@@ -36,12 +43,17 @@ def test_numbered_paging_and_transport(mocker, method, field, items, terminal_mo
     )
 
     # Act
-    result = inventory.get(API_URL, API_KEY, method)
+    result = inventory.get(API_URL, API_KEY, method, **kwargs)
 
     # Assert
     assert result == items + next_items
     assert [json.loads(c.kwargs["params"]["message"]) for c in get.call_args_list] == [
-        {"pageSize": 100, "page": page} for page in range(1, len(pages) + 1)
+        {
+            "pageSize": 100,
+            "page": page,
+            **({"groupId": "synthetic-group"} if kwargs else {}),
+        }
+        for page in range(1, len(pages) + 1)
     ]
     for call in get.call_args_list:
         assert call.args == (API_URL + "/workshop.v1.WorkshopService/" + method,)
@@ -299,6 +311,96 @@ def test_snake_case_and_omitted_optional_fields():
     assert result["hostname"] == ""
     assert result["tag_ids"] == ['["tenant-a","global"]']
     assert users[0]["directory_type"] == "DIRECTORY_TYPE_LOCAL"
+
+
+@pytest.mark.parametrize("group_id", [None, "", " ", 1])
+def test_members_require_explicit_group(mocker, group_id):
+    # Arrange
+    get = mocker.patch("cartography.intel.workshop.inventory.requests.get")
+
+    # Act and assert
+    with pytest.raises(ValueError):
+        inventory.get(API_URL, API_KEY, "ListGroupMembers", group_id)
+    get.assert_not_called()
+
+
+def test_selected_group_fields_and_complete_memberships():
+    # Arrange
+    users = inventory.transform_users(USERS, "tenant-a")
+
+    # Act
+    groups = inventory.transform_groups(GROUPS, GROUP_MEMBERS, users, "tenant-a")
+
+    # Assert
+    assert len(groups) == 12
+    assert groups[0] == {
+        "id": '["tenant-a","synthetic-group-0"]',
+        "group_id": "synthetic-group-0",
+        "name": "Synthetic Group 0",
+        "description": "Synthetic directory group",
+        "directory_type": "DIRECTORY_TYPE_DSYNC",
+        "idp_id": "synthetic-idp-group-0",
+        "tags_managed": True,
+        "tag_ids": [
+            '["tenant-a","synthetic-team"]',
+            '["tenant-a","synthetic-group-only"]',
+        ],
+        "member_ids": ['["tenant-a","synthetic-user-1"]'],
+    }
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"name": ""},
+        {"description": 7},
+        {"type": True},
+        {"type": "FUTURE"},
+        {"tagsManaged": "false"},
+        {"tags_managed": False},
+        {"idp_id": "ambiguous"},
+        {"tags": [None]},
+    ],
+)
+def test_invalid_group_fields(patch):
+    # Arrange
+    users = inventory.transform_users(USERS, "tenant-a")
+
+    # Act and assert
+    with pytest.raises(ValueError):
+        inventory.transform_groups(
+            [{**GROUPS[0], **patch}], GROUP_MEMBERS, users, "tenant-a"
+        )
+
+
+def test_unknown_directory_member_fails_closed():
+    # Arrange
+    members = {GROUPS[0]["id"]: [{"id": "synthetic-missing-user"}]}
+    users = inventory.transform_users(USERS, "tenant-a")
+
+    # Act and assert
+    with pytest.raises(ValueError, match="missing from ListUsers"):
+        inventory.transform_groups(GROUPS[:1], members, users, "tenant-a")
+
+
+def test_group_snake_case_and_empty_members():
+    # Arrange
+    group = {
+        "id": "synthetic-group",
+        "name": "Synthetic",
+        "idp_id": "synthetic-idp",
+        "tags_managed": False,
+        "type": 2,
+    }
+
+    # Act
+    result = inventory.transform_groups([group], {group["id"]: []}, [], "tenant-a")[0]
+
+    # Assert
+    assert result["directory_type"] == "DIRECTORY_TYPE_LOCAL"
+    assert result["idp_id"] == "synthetic-idp"
+    assert result["tags_managed"] is False
+    assert result["member_ids"] == result["tag_ids"] == []
 
 
 @pytest.mark.parametrize("tags", [[], ["global"], ["global", "global"]])

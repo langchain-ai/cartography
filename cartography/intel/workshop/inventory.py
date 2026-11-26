@@ -9,6 +9,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.workshop import sync_settings
 from cartography.intel.workshop.sync_settings import scoped_id
+from cartography.models.workshop.inventory import WorkshopGroupSchema
 from cartography.models.workshop.inventory import WorkshopHostSchema
 from cartography.models.workshop.inventory import WorkshopUserSchema
 from cartography.util import timeit
@@ -59,13 +60,22 @@ def _count(value: Any) -> int:
 
 
 @timeit
-def get(api_url: str, api_key: str, method: str) -> list[dict[str, Any]]:
+def get(
+    api_url: str, api_key: str, method: str, group_id: str | None = None
+) -> list[dict[str, Any]]:
     fields = {
         "ListHosts": ("hosts", "uuid"),
         "ListUsers": ("users", "id"),
         "ListTags": ("tags", "tag"),
+        "ListGroups": ("groups", "id"),
+        "ListGroupMembers": ("members", "id"),
     }
     field, identity = fields[method]
+    if method == "ListGroupMembers":
+        if not isinstance(group_id, str) or not group_id.strip():
+            raise ValueError("Workshop group membership requires a group ID")
+    elif group_id is not None:
+        raise ValueError("Unexpected Workshop group ID")
     parsed = urlsplit(api_url)
     if (
         parsed.scheme != "https"
@@ -87,7 +97,13 @@ def get(api_url: str, api_key: str, method: str) -> list[dict[str, Any]]:
             headers={"Authorization": api_key},
             params={
                 "encoding": "json",
-                "message": json.dumps({"pageSize": PAGE_SIZE, "page": page}),
+                "message": json.dumps(
+                    {
+                        "pageSize": PAGE_SIZE,
+                        "page": page,
+                        **({"groupId": group_id} if group_id is not None else {}),
+                    }
+                ),
             },
             timeout=(10, 60),
             allow_redirects=False,
@@ -137,16 +153,20 @@ def get(api_url: str, api_key: str, method: str) -> list[dict[str, Any]]:
     raise ValueError("Workshop inventory pagination did not terminate")
 
 
+def _directory_type(record: dict[str, Any]) -> str:
+    value = record.get("type", DIRECTORY_TYPES[0])
+    if type(value) is int and 0 <= value < len(DIRECTORY_TYPES):
+        value = DIRECTORY_TYPES[value]
+    if not isinstance(value, str) or value not in DIRECTORY_TYPES:
+        raise ValueError("Invalid Workshop directory type")
+    return value
+
+
 def transform_users(
     users: list[dict[str, Any]], tenant_id: str
 ) -> list[dict[str, Any]]:
     result = []
     for user in users:
-        directory_type = user.get("type", DIRECTORY_TYPES[0])
-        if type(directory_type) is int and 0 <= directory_type < len(DIRECTORY_TYPES):
-            directory_type = DIRECTORY_TYPES[directory_type]
-        if not isinstance(directory_type, str) or directory_type not in DIRECTORY_TYPES:
-            raise ValueError("Invalid Workshop directory type")
         result.append(
             {
                 "id": scoped_id(tenant_id, _string(user, "id", "id", required=True)),
@@ -155,8 +175,45 @@ def transform_users(
                 "manager_email": _string(user, "managerEmail", "manager_email"),
                 "department_name": _string(user, "departmentName", "department_name"),
                 "cost_center_name": _string(user, "costCenterName", "cost_center_name"),
-                "directory_type": directory_type,
+                "directory_type": _directory_type(user),
             },
+        )
+    return result
+
+
+def transform_groups(
+    groups: list[dict[str, Any]],
+    members: dict[str, list[dict[str, Any]]],
+    users: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
+    user_ids = {user["id"] for user in users}
+    result = []
+    for group in groups:
+        group_id = _string(group, "id", "id", required=True)
+        member_ids = [
+            scoped_id(tenant_id, _string(member, "id", "id", required=True))
+            for member in members[group_id]
+        ]
+        if not set(member_ids) <= user_ids:
+            raise ValueError("Workshop group references a user missing from ListUsers")
+        managed = _field(group, "tagsManaged", "tags_managed")
+        if managed is not None and type(managed) is not bool:
+            raise ValueError("Invalid Workshop group tags-managed flag")
+        result.append(
+            {
+                "id": scoped_id(tenant_id, group_id),
+                "group_id": group_id,
+                "name": _string(group, "name", "name", required=True),
+                "description": _string(group, "description", "description"),
+                "directory_type": _directory_type(group),
+                "idp_id": _string(group, "idpId", "idp_id"),
+                "tags_managed": managed if managed is not None else False,
+                "tag_ids": [
+                    scoped_id(tenant_id, tag) for tag in _strings(group, "tags", "tags")
+                ],
+                "member_ids": member_ids,
+            }
         )
     return result
 
@@ -218,17 +275,29 @@ def sync(
     users = transform_users(get(api_url, api_key, "ListUsers"), tenant_id)
     catalog = get(api_url, api_key, "ListTags")
     hosts = transform_hosts(raw_hosts, users, tenant_id)
+    raw_groups = get(api_url, api_key, "ListGroups")
+    members = {
+        group["id"]: get(api_url, api_key, "ListGroupMembers", group["id"])
+        for group in raw_groups
+    }
+    groups = transform_groups(raw_groups, members, users, tenant_id)
     tags = {item["tag"]: item for item in settings}
-    for tag in [item["tag"] for item in catalog] + [
-        tag for host in raw_hosts for tag in _host_tags(host)
-    ]:
+    for tag in (
+        [item["tag"] for item in catalog]
+        + [tag for host in raw_hosts for tag in _host_tags(host)]
+        + [tag for group in raw_groups for tag in _strings(group, "tags", "tags")]
+    ):
         tags.setdefault(tag, {"id": scoped_id(tenant_id, tag), "tag": tag})
     sync_settings.load_settings(
         neo4j_session, list(tags.values()), tenant_id, update_tag
     )
-    for schema, data in ((WorkshopUserSchema(), users), (WorkshopHostSchema(), hosts)):
+    for schema, data in (
+        (WorkshopUserSchema(), users),
+        (WorkshopGroupSchema(), groups),
+        (WorkshopHostSchema(), hosts),
+    ):
         load(neo4j_session, schema, data, lastupdated=update_tag, TENANT_ID=tenant_id)
-    for schema in (WorkshopHostSchema(), WorkshopUserSchema()):
+    for schema in (WorkshopHostSchema(), WorkshopGroupSchema(), WorkshopUserSchema()):
         GraphJob.from_node_schema(
             schema, {"UPDATE_TAG": update_tag, "TENANT_ID": tenant_id}
         ).run(neo4j_session)

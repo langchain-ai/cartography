@@ -38,6 +38,23 @@ a settings record has no configured-mode edge. Every workstation includes Worksh
 implicit `global` membership, even when omitted from its returned tags. Host-specific
 membership is not synthesized when absent from the response.
 
+## Directory groups, members, and tag assignments
+
+```cypher
+MATCH (g:WorkshopGroup {tenant_id: 'example-tenant'})
+OPTIONAL MATCH (u:WorkshopUser)-[:MEMBER_OF]->(g)
+OPTIONAL MATCH (g)-[:HAS_TAG]->(t:WorkshopTag)
+RETURN g.name AS directory_group,
+       g.group_id AS group_id,
+       collect(DISTINCT u.username) AS members,
+       collect(DISTINCT t.tag) AS assigned_tags
+ORDER BY directory_group;
+```
+
+This includes empty groups. Membership comes from the complete per-group endpoint,
+not the 10-group preview embedded in a user record. These are directory memberships
+and tag assignments, not SSO role assignments or proof of Workshop admin access.
+
 ## Visualize inventory relationships
 
 ```cypher

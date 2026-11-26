@@ -1,9 +1,10 @@
 # Workshop configuration
 
-This connector reads workstation inventory, host tags, directory users, the tag catalog,
-and configured tag-to-client-mode mappings. It calls only `ListHosts`, `ListUsers`,
-`ListTags`, and `ListSyncSettings`. It writes inventory to your Cartography graph,
-not to Workshop.
+This connector reads workstation inventory, host tags, directory users and groups,
+complete user-to-group memberships, group tag assignments, the tag catalog, and
+configured tag-to-client-mode mappings. It calls only `ListHosts`, `ListUsers`,
+`ListGroups`, `ListGroupMembers`, `ListTags`, and `ListSyncSettings`. It writes inventory
+to your Cartography graph, not to Workshop.
 
 ## Authentication
 
@@ -17,14 +18,18 @@ by North Pole Security. Do not put keys in command-line arguments or fixture fil
 | --- | --- |
 | `read:settings` | Call `ListSyncSettings` for configured client modes. |
 | `read:hosts` | Call `ListHosts` for workstation details, primary users, and assigned tags. |
-| `read:scim` | Call `ListUsers` for directory user details. |
+| `read:scim` | Call `ListUsers`, `ListGroups`, and `ListGroupMembers` for directory records and complete memberships. |
 | `read:tags` | Call `ListTags` for tags without a host or client-mode setting. |
 
-All four RPCs are annotated `NO_SIDE_EFFECTS`. Use tenant-wide read permissions, not
+All six RPCs are annotated `NO_SIDE_EFFECTS`. Use tenant-wide read permissions, not
 `read:hosts:self`, which can produce a partial inventory. The expanded connector requires
-all four reads; a key that previously had only `read:settings` must have these additional
+all six RPCs; a key that previously had only `read:settings` must have these additional
 read permissions before you rerun it. A denied read aborts without graph writes or cleanup;
 the connector does not fall back to a partial sync or change the key's permissions.
+
+Groups and memberships use the existing `read:scim` permission; they need no additional
+permission beyond the inventory connector. The connector paginates each group separately,
+so large directories require additional requests and memory.
 
 No write, event, or policy-management permissions are required. This connector does not
 create keys, request workstation commands, or change permissions.

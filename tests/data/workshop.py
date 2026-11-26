@@ -35,6 +35,19 @@ USERS = [
     },
 ]
 TAGS = [{"tag": "synthetic-team"}, {"tag": "synthetic-catalog-only"}]
+GROUPS = [
+    {
+        "id": f"synthetic-group-{index}",
+        "name": f"Synthetic Group {index}",
+        "description": "Synthetic directory group",
+        "tags": ["synthetic-team", "synthetic-group-only"],
+        "type": "DIRECTORY_TYPE_DSYNC",
+        "idpId": f"synthetic-idp-group-{index}",
+        "tagsManaged": True,
+    }
+    for index in range(12)
+]
+GROUP_MEMBERS = {group["id"]: USERS for group in GROUPS}
 
 
 def response(payload: Any, status: int = 200) -> requests.Response:
