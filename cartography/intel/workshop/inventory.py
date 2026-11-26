@@ -161,6 +161,10 @@ def transform_users(
     return result
 
 
+def _host_tags(host: dict[str, Any]) -> list[str]:
+    return list(dict.fromkeys(["global", *_strings(host, "tags", "tags")]))
+
+
 def transform_hosts(
     hosts: list[dict[str, Any]],
     users: list[dict[str, Any]],
@@ -195,9 +199,7 @@ def transform_hosts(
                     host, "primaryUserGroups", "primary_user_groups"
                 ),
                 "primary_user_id": matches[0] if len(matches) == 1 else None,
-                "tag_ids": [
-                    scoped_id(tenant_id, tag) for tag in _strings(host, "tags", "tags")
-                ],
+                "tag_ids": [scoped_id(tenant_id, tag) for tag in _host_tags(host)],
             },
         )
     return result
@@ -218,7 +220,7 @@ def sync(
     hosts = transform_hosts(raw_hosts, users, tenant_id)
     tags = {item["tag"]: item for item in settings}
     for tag in [item["tag"] for item in catalog] + [
-        tag for host in raw_hosts for tag in _strings(host, "tags", "tags")
+        tag for host in raw_hosts for tag in _host_tags(host)
     ]:
         tags.setdefault(tag, {"id": scoped_id(tenant_id, tag), "tag": tag})
     sync_settings.load_settings(

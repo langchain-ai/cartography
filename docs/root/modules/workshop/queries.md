@@ -34,8 +34,9 @@ ORDER BY hostname, tag;
 ```
 
 This query shows tag configuration, not the workstation's effective mode. A tag without
-a settings record has no configured-mode edge. The graph does not synthesize implicit
-global or host-specific membership when it is absent from the host's returned tags.
+a settings record has no configured-mode edge. Every workstation includes Workshop's
+implicit `global` membership, even when omitted from its returned tags. Host-specific
+membership is not synthesized when absent from the response.
 
 ## Visualize inventory relationships
 

@@ -216,6 +216,7 @@ def test_selected_host_and_directory_fields():
     assert hosts[0]["primary_user_id"] == users[0]["id"]
     assert hosts[0]["primary_user_groups"] == ["synthetic-group"]
     assert hosts[0]["tag_ids"] == [
+        '["tenant-a","global"]',
         '["tenant-a","synthetic-team"]',
         '["tenant-a","synthetic-inventory-only"]',
     ]
@@ -296,5 +297,17 @@ def test_snake_case_and_omitted_optional_fields():
     # Assert
     assert result["os_version"] == "99"
     assert result["hostname"] == ""
-    assert result["tag_ids"] == []
+    assert result["tag_ids"] == ['["tenant-a","global"]']
     assert users[0]["directory_type"] == "DIRECTORY_TYPE_LOCAL"
+
+
+@pytest.mark.parametrize("tags", [[], ["global"], ["global", "global"]])
+def test_global_membership_is_always_present_once(tags):
+    # Arrange
+    host = {"uuid": "synthetic-host", "tags": tags}
+
+    # Act
+    result = inventory.transform_hosts([host], [], "tenant-a")[0]
+
+    # Assert
+    assert result["tag_ids"] == ['["tenant-a","global"]']

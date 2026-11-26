@@ -14,8 +14,11 @@ cross-tenant collisions. The connector retains selected fields only, not raw res
   type from `ListUsers`. The public `User` message has no display-name or separate email
   field; the connector does not invent either from a username. Directory data can be
   empty or stale when the tenant does not synchronize users.
-- Host-to-tag `HAS_TAG` edges use only the host's returned `tags` list. The connector
-  does not synthesize implicit tags, resolve ordering, or infer membership from groups.
+- Host-to-tag `HAS_TAG` edges include the host's returned `tags` list and the implicit
+  `global` tag, which [Workshop applies to every host](https://northpole.security/docs/workshop/tags#concepts).
+  The connector adds `global` even when omitted from host tags, the tag catalog, or settings,
+  without duplicating an explicitly returned membership. It does not synthesize host-specific
+  tags, resolve ordering, or infer membership from groups.
 - Host-to-user `PRIMARY_USER` edges require an exact match with exactly one directory
   username in the same tenant. An unmatched or ambiguous primary username remains on
   the host without a guessed directory link. No cross-provider user matching is performed.

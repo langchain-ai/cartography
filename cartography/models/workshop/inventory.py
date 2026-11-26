@@ -43,7 +43,7 @@ class WorkshopUserSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class WorkshopHostTag(CartographyRelSchema):
-    """A tag returned in the host's tags list; no precedence is inferred."""
+    """A reported tag or Workshop's implicit global tag; no precedence is inferred."""
 
     target_node_label: str = "WorkshopTag"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

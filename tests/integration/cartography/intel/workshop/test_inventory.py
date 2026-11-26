@@ -104,7 +104,7 @@ def test_inventory_links_hosts_tags_and_users(mocker, neo4j_session):
     ) == {
         (f'["{tenant}","synthetic-host-1"]', f'["{tenant}","{tag}"]')
         for tenant in ("tenant-a", "tenant-b")
-        for tag in ("synthetic-team", "synthetic-inventory-only")
+        for tag in ("global", "synthetic-team", "synthetic-inventory-only")
     }
     assert check_rels(
         neo4j_session, "WorkshopHost", "id", "WorkshopUser", "id", "PRIMARY_USER"
@@ -139,6 +139,8 @@ def test_inventory_links_hosts_tags_and_users(mocker, neo4j_session):
     assert check_rels(
         neo4j_session, "WorkshopHost", "id", "WorkshopTag", "id", "HAS_TAG"
     ) == {
+        ('["tenant-a","synthetic-host-1"]', '["tenant-a","global"]'),
+        ('["tenant-b","synthetic-host-1"]', '["tenant-b","global"]'),
         ('["tenant-a","synthetic-host-1"]', '["tenant-a","synthetic-team"]'),
         ('["tenant-b","synthetic-host-1"]', '["tenant-b","synthetic-team"]'),
         ('["tenant-b","synthetic-host-1"]', '["tenant-b","synthetic-inventory-only"]'),
@@ -162,6 +164,47 @@ def test_inventory_links_hosts_tags_and_users(mocker, neo4j_session):
     assert check_nodes(neo4j_session, "WorkshopHost", ["tenant_id"]) == {("tenant-b",)}
     assert check_nodes(neo4j_session, "WorkshopUser", ["tenant_id"]) == {("tenant-b",)}
     assert check_nodes(neo4j_session, "WorkshopTag", ["tenant_id"]) == {("tenant-b",)}
+
+
+def test_implicit_global_reuses_configured_tag_without_duplicate_edges(
+    mocker, neo4j_session
+):
+    # Arrange
+    get = mocker.patch("cartography.intel.workshop.sync_settings.requests.get")
+    mocker.patch("cartography.intel.workshop.inventory.requests.get", new=get)
+    get.side_effect = (
+        full_read(
+            settings=[{"tag": "global", "clientMode": "LOCKDOWN"}],
+            hosts=[
+                {"uuid": "synthetic-host-1"},
+                {"uuid": "synthetic-host-2", "tags": ["global", "global"]},
+            ],
+            users=[],
+            tags=[],
+        )
+        * 2
+    )
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 1)
+    run_sync(neo4j_session, "tenant-a", 2)
+
+    # Assert
+    assert check_nodes(neo4j_session, "WorkshopTag", ["tag"]) == {("global",)}
+    assert check_rels(
+        neo4j_session,
+        "WorkshopTag",
+        "tag",
+        "WorkshopClientMode",
+        "name",
+        "CONFIGURED_CLIENT_MODE",
+    ) == {("global", "LOCKDOWN")}
+    assert (
+        neo4j_session.run(
+            "MATCH (:WorkshopHost)-[r:HAS_TAG]->(:WorkshopTag {tag: 'global'}) RETURN count(r) AS count"
+        ).single()["count"]
+        == 2
+    )
 
 
 @pytest.mark.parametrize("failure_index", [1, 2, 4, 6, 7])
@@ -234,6 +277,7 @@ def test_idempotency_and_removed_settings_or_directory_records(mocker, neo4j_ses
     assert check_rels(
         neo4j_session, "WorkshopHost", "uuid", "WorkshopTag", "tag", "HAS_TAG"
     ) == {
+        ("synthetic-host-1", "global"),
         ("synthetic-host-1", "synthetic-team"),
         ("synthetic-host-1", "synthetic-inventory-only"),
     }
