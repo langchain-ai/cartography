@@ -169,6 +169,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "spacelift": _LazyStage(
             "cartography.intel.spacelift", "start_spacelift_ingestion"
         ),
+        "workshop": _LazyStage(
+            "cartography.intel.workshop", "start_workshop_ingestion"
+        ),
         "workos": _LazyStage("cartography.intel.workos", "start_workos_ingestion"),
         "subimage": _LazyStage(
             "cartography.intel.subimage", "start_subimage_ingestion"

@@ -853,6 +853,9 @@ class Config:
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
+        workshop_api_url=None,
+        workshop_api_key=None,
+        workshop_tenant_id=None,
         workos_api_key=None,
         workos_client_id=None,
         sentry_token=None,
@@ -1266,6 +1269,9 @@ class Config:
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
+        self.workshop_api_url = workshop_api_url
+        self.workshop_api_key = workshop_api_key
+        self.workshop_tenant_id = workshop_tenant_id
         self.workos_api_key = workos_api_key
         self.workos_client_id = workos_client_id
         self.sentry_token = sentry_token

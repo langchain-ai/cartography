@@ -1,0 +1,428 @@
+import json
+
+import pytest
+import requests
+
+from cartography.config import Config
+from cartography.intel.workshop import start_workshop_ingestion
+from tests.data.workshop import API_KEY
+from tests.data.workshop import API_URL
+from tests.data.workshop import GROUP_MEMBERS
+from tests.data.workshop import GROUPS
+from tests.data.workshop import HOSTS
+from tests.data.workshop import response
+from tests.data.workshop import SETTINGS
+from tests.data.workshop import TAGS
+from tests.data.workshop import USERS
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
+
+LABELS = [
+    "WorkshopTenant",
+    "WorkshopTag",
+    "WorkshopClientMode",
+    "WorkshopHost",
+    "WorkshopUser",
+    "WorkshopGroup",
+]
+
+
+@pytest.fixture(autouse=True)
+def reset_workshop(neo4j_session):
+    neo4j_session.run(
+        "MATCH (n) WHERE any(label IN labels(n) WHERE label IN $labels) DETACH DELETE n",
+        labels=LABELS,
+    )
+
+
+def read(method, data):
+    field = {
+        "ListSyncSettings": "syncSettings",
+        "ListHosts": "hosts",
+        "ListUsers": "users",
+        "ListTags": "tags",
+        "ListGroups": "groups",
+        "ListGroupMembers": "members",
+    }[method]
+    return [response({field: data}), response({})] if data else [response({})]
+
+
+def full_read(
+    settings=SETTINGS, hosts=HOSTS, users=USERS, tags=TAGS, groups=(), members=None
+):
+    memberships = GROUP_MEMBERS if members is None else members
+    return (
+        read("ListSyncSettings", settings)
+        + read("ListHosts", hosts)
+        + read("ListUsers", users)
+        + read("ListTags", tags)
+        + read("ListGroups", groups)
+        + [
+            item
+            for group in groups
+            for item in read("ListGroupMembers", memberships[group["id"]])
+        ]
+    )
+
+
+def run_sync(session, tenant, update_tag):
+    start_workshop_ingestion(
+        session,
+        Config(
+            neo4j_uri="bolt://example.invalid",
+            workshop_api_url=API_URL,
+            workshop_api_key=API_KEY,
+            workshop_tenant_id=tenant,
+            update_tag=update_tag,
+        ),
+    )
+
+
+def snapshot(session):
+    nodes = session.run(
+        "MATCH (n) WHERE any(label IN labels(n) WHERE label IN $labels) RETURN labels(n) AS labels, properties(n) AS properties",
+        labels=LABELS,
+    ).data()
+    edges = session.run(
+        "MATCH (n)-[r]->(m) WHERE any(label IN labels(n) WHERE label IN $labels) RETURN n.id AS source, type(r) AS type, m.id AS target, properties(r) AS properties",
+        labels=LABELS,
+    ).data()
+    return sorted(json.dumps(record, sort_keys=True) for record in nodes + edges)
+
+
+def test_group_membership_tags_and_tenant_scoped_cleanup(mocker, neo4j_session):
+    # Arrange
+    get = mocker.patch("cartography.intel.workshop.inventory.requests.get")
+    mocker.patch("cartography.intel.workshop.sync_settings.requests.get", new=get)
+    get.side_effect = full_read(groups=GROUPS) * 3
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 1)
+    run_sync(neo4j_session, "tenant-b", 1)
+    before = snapshot(neo4j_session)
+    run_sync(neo4j_session, "tenant-a", 1)
+
+    # Assert
+    assert snapshot(neo4j_session) == before
+    assert check_nodes(
+        neo4j_session,
+        "WorkshopGroup",
+        ["tenant_id", "group_id", "idp_id", "tags_managed"],
+    ) == {
+        (tenant, group["id"], group["idpId"], True)
+        for tenant in ("tenant-a", "tenant-b")
+        for group in GROUPS
+    }
+    assert check_rels(
+        neo4j_session, "WorkshopTenant", "id", "WorkshopGroup", "id", "RESOURCE"
+    ) == {
+        (tenant, json.dumps([tenant, group["id"]], separators=(",", ":")))
+        for tenant in ("tenant-a", "tenant-b")
+        for group in GROUPS
+    }
+    assert check_rels(
+        neo4j_session, "WorkshopUser", "id", "WorkshopGroup", "id", "MEMBER_OF"
+    ) == {
+        (
+            json.dumps([tenant, USERS[0]["id"]], separators=(",", ":")),
+            json.dumps([tenant, group["id"]], separators=(",", ":")),
+        )
+        for tenant in ("tenant-a", "tenant-b")
+        for group in GROUPS
+    }
+    assert check_rels(
+        neo4j_session, "WorkshopGroup", "id", "WorkshopTag", "id", "HAS_TAG"
+    ) == {
+        (
+            json.dumps([tenant, group["id"]], separators=(",", ":")),
+            json.dumps([tenant, tag], separators=(",", ":")),
+        )
+        for tenant in ("tenant-a", "tenant-b")
+        for group in GROUPS
+        for tag in group["tags"]
+    }
+    assert not neo4j_session.run(
+        "MATCH (:WorkshopTag {tag: 'synthetic-group-only'})-[:CONFIGURED_CLIENT_MODE]->() RETURN 1"
+    ).data()
+
+    # Arrange
+    get.side_effect = full_read(
+        groups=[{**GROUPS[0], "tags": []}], members={GROUPS[0]["id"]: []}
+    )
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 2)
+
+    # Assert
+    assert check_nodes(neo4j_session, "WorkshopGroup", ["tenant_id", "group_id"]) == {
+        ("tenant-a", GROUPS[0]["id"]),
+        *(("tenant-b", group["id"]) for group in GROUPS),
+    }
+    assert (
+        len(
+            check_rels(
+                neo4j_session, "WorkshopUser", "id", "WorkshopGroup", "id", "MEMBER_OF"
+            )
+        )
+        == 12
+    )
+    assert (
+        len(
+            check_rels(
+                neo4j_session, "WorkshopGroup", "id", "WorkshopTag", "id", "HAS_TAG"
+            )
+        )
+        == 24
+    )
+    assert check_nodes(neo4j_session, "WorkshopTag", ["tenant_id", "tag"]) & {
+        ("tenant-a", "synthetic-group-only"),
+        ("tenant-b", "synthetic-group-only"),
+    } == {("tenant-b", "synthetic-group-only")}
+    assert not neo4j_session.run(
+        "MATCH (:WorkshopUser {tenant_id: 'tenant-a'})-[:MEMBER_OF]->() RETURN 1"
+    ).data()
+    assert not neo4j_session.run(
+        "MATCH (:WorkshopGroup {tenant_id: 'tenant-a'})-[:HAS_TAG]->() RETURN 1"
+    ).data()
+
+    # Arrange
+    get.side_effect = full_read()
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 3)
+
+    # Assert
+    assert check_nodes(neo4j_session, "WorkshopGroup", ["tenant_id"]) == {("tenant-b",)}
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        response({}, 403),
+        requests.Timeout(),
+        response({"more": True}),
+        response({"members": [{"id": "synthetic-missing-user"}], "more": False}),
+    ],
+)
+def test_late_group_read_failure_preserves_entire_graph(mocker, neo4j_session, failure):
+    # Arrange
+    get = mocker.patch("cartography.intel.workshop.inventory.requests.get")
+    mocker.patch("cartography.intel.workshop.sync_settings.requests.get", new=get)
+    get.side_effect = full_read(groups=GROUPS)
+    run_sync(neo4j_session, "tenant-a", 1)
+    before = snapshot(neo4j_session)
+    reads = full_read(groups=GROUPS, hosts=[{**HOSTS[0], "hostname": "changed"}])
+    reads[-2:] = [failure]
+    get.side_effect = reads
+
+    # Act and assert
+    with pytest.raises((ValueError, requests.RequestException)):
+        run_sync(neo4j_session, "tenant-a", 2)
+    assert snapshot(neo4j_session) == before
+
+
+def test_inventory_links_hosts_tags_and_users(mocker, neo4j_session):
+    # Arrange
+    get = mocker.patch("cartography.intel.workshop.sync_settings.requests.get")
+    mocker.patch("cartography.intel.workshop.inventory.requests.get", new=get)
+    get.side_effect = full_read() * 2
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 1)
+    run_sync(neo4j_session, "tenant-b", 1)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session, "WorkshopHost", ["tenant_id", "hostname", "primary_user"]
+    ) == {
+        (tenant, "synthetic-workstation", "synthetic-user@example.invalid")
+        for tenant in ("tenant-a", "tenant-b")
+    }
+    assert check_nodes(
+        neo4j_session, "WorkshopUser", ["tenant_id", "username", "department_name"]
+    ) == {
+        (tenant, "synthetic-user@example.invalid", "Synthetic Department")
+        for tenant in ("tenant-a", "tenant-b")
+    }
+    assert check_rels(
+        neo4j_session, "WorkshopHost", "id", "WorkshopTag", "id", "HAS_TAG"
+    ) == {
+        (f'["{tenant}","synthetic-host-1"]', f'["{tenant}","{tag}"]')
+        for tenant in ("tenant-a", "tenant-b")
+        for tag in ("global", "synthetic-team", "synthetic-inventory-only")
+    }
+    assert check_rels(
+        neo4j_session, "WorkshopHost", "id", "WorkshopUser", "id", "PRIMARY_USER"
+    ) == {
+        (f'["{tenant}","synthetic-host-1"]', f'["{tenant}","synthetic-user-1"]')
+        for tenant in ("tenant-a", "tenant-b")
+    }
+    assert check_nodes(neo4j_session, "WorkshopTag", ["tenant_id", "tag"]) >= {
+        ("tenant-a", "synthetic-catalog-only"),
+        ("tenant-a", "synthetic-inventory-only"),
+    }
+    assert not neo4j_session.run(
+        "MATCH (:WorkshopHost)-[r]->(m:WorkshopClientMode) RETURN r"
+    ).data()
+
+    # Arrange
+    get.side_effect = full_read(
+        hosts=[
+            {
+                **HOSTS[0],
+                "tags": ["synthetic-team"],
+                "primaryUser": "unmatched@example.invalid",
+            }
+        ],
+        tags=[{"tag": "synthetic-inventory-only"}],
+    )
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 2)
+
+    # Assert
+    assert check_rels(
+        neo4j_session, "WorkshopHost", "id", "WorkshopTag", "id", "HAS_TAG"
+    ) == {
+        ('["tenant-a","synthetic-host-1"]', '["tenant-a","global"]'),
+        ('["tenant-b","synthetic-host-1"]', '["tenant-b","global"]'),
+        ('["tenant-a","synthetic-host-1"]', '["tenant-a","synthetic-team"]'),
+        ('["tenant-b","synthetic-host-1"]', '["tenant-b","synthetic-team"]'),
+        ('["tenant-b","synthetic-host-1"]', '["tenant-b","synthetic-inventory-only"]'),
+    }
+    assert check_rels(
+        neo4j_session, "WorkshopHost", "id", "WorkshopUser", "id", "PRIMARY_USER"
+    ) == {
+        ('["tenant-b","synthetic-host-1"]', '["tenant-b","synthetic-user-1"]'),
+    }
+    assert ("tenant-a", "synthetic-catalog-only") not in check_nodes(
+        neo4j_session, "WorkshopTag", ["tenant_id", "tag"]
+    )
+
+    # Arrange
+    get.side_effect = full_read(settings=[], hosts=[], users=[], tags=[])
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 3)
+
+    # Assert
+    assert check_nodes(neo4j_session, "WorkshopHost", ["tenant_id"]) == {("tenant-b",)}
+    assert check_nodes(neo4j_session, "WorkshopUser", ["tenant_id"]) == {("tenant-b",)}
+    assert check_nodes(neo4j_session, "WorkshopTag", ["tenant_id"]) == {("tenant-b",)}
+
+
+def test_implicit_global_reuses_configured_tag_without_duplicate_edges(
+    mocker, neo4j_session
+):
+    # Arrange
+    get = mocker.patch("cartography.intel.workshop.sync_settings.requests.get")
+    mocker.patch("cartography.intel.workshop.inventory.requests.get", new=get)
+    get.side_effect = (
+        full_read(
+            settings=[{"tag": "global", "clientMode": "LOCKDOWN"}],
+            hosts=[
+                {"uuid": "synthetic-host-1"},
+                {"uuid": "synthetic-host-2", "tags": ["global", "global"]},
+            ],
+            users=[],
+            tags=[],
+        )
+        * 2
+    )
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 1)
+    run_sync(neo4j_session, "tenant-a", 2)
+
+    # Assert
+    assert check_nodes(neo4j_session, "WorkshopTag", ["tag"]) == {("global",)}
+    assert check_rels(
+        neo4j_session,
+        "WorkshopTag",
+        "tag",
+        "WorkshopClientMode",
+        "name",
+        "CONFIGURED_CLIENT_MODE",
+    ) == {("global", "LOCKDOWN")}
+    assert (
+        neo4j_session.run(
+            "MATCH (:WorkshopHost)-[r:HAS_TAG]->(:WorkshopTag {tag: 'global'}) RETURN count(r) AS count"
+        ).single()["count"]
+        == 2
+    )
+
+
+@pytest.mark.parametrize("failure_index", [1, 2, 4, 6, 7, 8])
+@pytest.mark.parametrize(
+    "failure", [response({}, 403), requests.Timeout(), response({"hosts": None})]
+)
+def test_any_incomplete_inventory_read_preserves_graph(
+    mocker, neo4j_session, failure_index, failure
+):
+    # Arrange
+    get = mocker.patch("cartography.intel.workshop.sync_settings.requests.get")
+    mocker.patch("cartography.intel.workshop.inventory.requests.get", new=get)
+    get.side_effect = full_read()
+    run_sync(neo4j_session, "tenant-a", 1)
+    before = snapshot(neo4j_session)
+    reads = full_read(hosts=[{**HOSTS[0], "hostname": "changed"}])
+    reads[failure_index] = failure
+    get.side_effect = reads
+
+    # Act and assert
+    with pytest.raises((ValueError, requests.RequestException)):
+        run_sync(neo4j_session, "tenant-a", 2)
+    assert snapshot(neo4j_session) == before
+
+
+def test_truncated_host_tags_preserve_graph(mocker, neo4j_session):
+    # Arrange
+    get = mocker.patch("cartography.intel.workshop.sync_settings.requests.get")
+    mocker.patch("cartography.intel.workshop.inventory.requests.get", new=get)
+    get.side_effect = full_read()
+    run_sync(neo4j_session, "tenant-a", 1)
+    before = snapshot(neo4j_session)
+    get.side_effect = full_read(hosts=[{**HOSTS[0], "tagsTruncated": True}])
+
+    # Act and assert
+    with pytest.raises(ValueError):
+        run_sync(neo4j_session, "tenant-a", 2)
+    assert snapshot(neo4j_session) == before
+
+
+def test_idempotency_and_removed_settings_or_directory_records(mocker, neo4j_session):
+    # Arrange
+    get = mocker.patch("cartography.intel.workshop.sync_settings.requests.get")
+    mocker.patch("cartography.intel.workshop.inventory.requests.get", new=get)
+    get.side_effect = full_read() * 2
+    run_sync(neo4j_session, "tenant-a", 1)
+    before = snapshot(neo4j_session)
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 1)
+
+    # Assert
+    assert snapshot(neo4j_session) == before
+
+    # Arrange
+    get.side_effect = full_read(settings=[], users=[])
+
+    # Act
+    run_sync(neo4j_session, "tenant-a", 2)
+
+    # Assert
+    assert check_nodes(neo4j_session, "WorkshopHost", ["primary_user"]) == {
+        ("synthetic-user@example.invalid",),
+    }
+    assert not check_nodes(neo4j_session, "WorkshopUser", ["id"])
+    assert not check_nodes(neo4j_session, "WorkshopClientMode", ["id"])
+    assert not check_rels(
+        neo4j_session, "WorkshopHost", "id", "WorkshopUser", "id", "PRIMARY_USER"
+    )
+    assert check_rels(
+        neo4j_session, "WorkshopHost", "uuid", "WorkshopTag", "tag", "HAS_TAG"
+    ) == {
+        ("synthetic-host-1", "global"),
+        ("synthetic-host-1", "synthetic-team"),
+        ("synthetic-host-1", "synthetic-inventory-only"),
+    }
