@@ -2203,7 +2203,7 @@ class CLI:
                     help=(
                         "Environment variable name containing a Datadog API key. "
                         "Required with an application key; not needed with a "
-                        "personal or service access token."
+                        "service access token."
                     ),
                     rich_help_panel=PANEL_DATADOG,
                     hidden=PANEL_DATADOG not in visible_panels,
@@ -2215,8 +2215,7 @@ class CLI:
                     "--datadog-app-key-env-var",
                     help=(
                         "Environment variable name containing a Datadog application "
-                        "key, personal access token, or service access token. "
-                        "Enables the Datadog module."
+                        "key or service access token. Enables the Datadog module."
                     ),
                     rich_help_panel=PANEL_DATADOG,
                     hidden=PANEL_DATADOG not in visible_panels,

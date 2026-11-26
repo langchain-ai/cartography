@@ -66,16 +66,12 @@ def build_session(api_key: str | None, app_key: str) -> ReadOnlySession:
         "Accept": "application/json",
         "DD-APPLICATION-KEY": app_key,
     }
-    # Personal and service access tokens authenticate on their own; application
-    # keys also need an API key.
+    # Service access tokens authenticate on their own; application keys also
+    # need an API key.
     if api_key:
         headers["DD-API-KEY"] = api_key
     session.headers.update(headers)
     return session
-
-
-def is_permission_error(error: requests.HTTPError) -> bool:
-    return error.response is not None and error.response.status_code == 403
 
 
 def get_object(
@@ -187,11 +183,3 @@ def relationship_id(item: dict[str, Any], name: str) -> str | None:
 def relationship_ids(item: dict[str, Any], name: str) -> list[str]:
     data = ((item.get("relationships") or {}).get(name) or {}).get("data") or []
     return sorted({entry["id"] for entry in data})
-
-
-def leak_status(item: dict[str, Any]) -> bool | None:
-    """Return whether Datadog flagged a key as leaked, or None if it didn't say."""
-    relationships = item.get("relationships") or {}
-    if "leak_information" not in relationships:
-        return None
-    return bool((relationships["leak_information"] or {}).get("data"))

@@ -24,13 +24,25 @@ CAROL_ID = "user-carol-0003"
 CI_SA_ID = "sa-ci-0001"
 CARTOGRAPHY_SA_ID = "sa-cartography-0002"
 
-# Values that look like secrets. Tests assert that none reaches the graph.
-FAKE_SECRETS = (
-    "fakeapikeyvalue000000000000000001",
-    "fakeappkeyvalue00000000000000000000000001",
-    "ddpat_fakepublicportion01",
-    "ddpat_fakepublicportion01_fakesecretsecretsecret",
-    "ddsat_fakepublicportion02",
+# Profile and sign-in details that Datadog returns for people. Tests assert
+# that none reaches the graph.
+PROFILE_ATTRIBUTES = (
+    "name",
+    "handle",
+    "title",
+    "icon",
+    "verified",
+    "mfa_enabled",
+    "last_login_time",
+    "allowed_login_methods",
+)
+PROFILE_SENTINELS = (
+    "Alice Admin",
+    "Bob Former",
+    "Carol Invited",
+    "Staff Engineer",
+    "https://secure.gravatar.com/avatar/example",
+    "2026-11-01T12:00:00+00:00",
 )
 
 GENERATED_USER_COUNT = 230
@@ -97,7 +109,7 @@ ROLES = [
     # perm-9999 is missing from PERMISSIONS on purpose.
     _role(
         AUDITOR_ROLE_ID,
-        "Key auditor",
+        "Access auditor",
         ["perm-0001", "perm-0003", "perm-0005", "perm-9999"],
         1,
     ),
@@ -122,7 +134,7 @@ def _user(
         "created_at": "2024-02-01T00:00:00+00:00",
         "modified_at": "2024-07-01T00:00:00+00:00",
         "icon": "https://secure.gravatar.com/avatar/example",
-        "title": None,
+        "title": "Staff Engineer" if not service_account else None,
         "verified": status != "Pending",
         "service_account": service_account,
         "disabled": status == "Disabled",
@@ -201,145 +213,17 @@ CURRENT_USER = {
                 "created_at": "2020-01-01T00:00:00+00:00",
             },
         },
-        {"type": "roles", "id": AUDITOR_ROLE_ID, "attributes": {"name": "Key auditor"}},
+        {
+            "type": "roles",
+            "id": AUDITOR_ROLE_ID,
+            "attributes": {"name": "Access auditor"},
+        },
     ],
 }
-
-API_KEYS = [
-    {
-        "type": "api_keys",
-        "id": "apikey-0001",
-        "attributes": {
-            "name": "production-agents",
-            # List responses never include `key`; this checks that transforms
-            # drop it anyway.
-            "key": FAKE_SECRETS[0],
-            "last4": "0001",
-            "category": "default",
-            "created_at": "2023-03-01T00:00:00+00:00",
-            "modified_at": "2023-03-01T00:00:00+00:00",
-            "date_last_used": "2026-11-20T00:00:00+00:00",
-            "remote_config_read_enabled": True,
-        },
-        "relationships": {
-            "created_by": {"data": {"type": "users", "id": BOB_ID}},
-            "modified_by": {"data": {"type": "users", "id": BOB_ID}},
-            "leak_information": {"data": None},
-        },
-    },
-    {
-        "type": "api_keys",
-        "id": "apikey-0002",
-        "attributes": {
-            "name": "ci-metrics",
-            "last4": "0002",
-            "category": "default",
-            "created_at": "2024-03-01T00:00:00+00:00",
-            "modified_at": "2024-03-01T00:00:00+00:00",
-            "date_last_used": None,
-            "remote_config_read_enabled": False,
-        },
-        "relationships": {
-            "created_by": {"data": {"type": "users", "id": CI_SA_ID}},
-            "modified_by": {"data": None},
-            "leak_information": {
-                "data": {"type": "leaked_keys", "id": "leak-0001"},
-            },
-        },
-    },
-]
-
-APPLICATION_KEYS = [
-    {
-        "type": "application_keys",
-        "id": "appkey-0001",
-        "attributes": {
-            "name": "alice-laptop",
-            "key": FAKE_SECRETS[1],
-            "last4": "a001",
-            "created_at": "2023-05-01T00:00:00+00:00",
-            "last_used_at": "2026-10-01T00:00:00+00:00",
-            "scopes": None,
-        },
-        "relationships": {
-            "owned_by": {"data": {"type": "users", "id": ALICE_ID}},
-            "leak_information": {"data": None},
-        },
-    },
-    {
-        "type": "application_keys",
-        "id": "appkey-0002",
-        "attributes": {
-            "name": "cartography",
-            "last4": "a002",
-            "created_at": "2026-01-01T00:00:00+00:00",
-            "last_used_at": "2026-11-25T00:00:00+00:00",
-            "scopes": ["user_access_read", "org_app_keys_read", "api_keys_read"],
-        },
-        "relationships": {
-            "owned_by": {"data": {"type": "users", "id": CARTOGRAPHY_SA_ID}},
-            "leak_information": {"data": None},
-        },
-    },
-    {
-        "type": "application_keys",
-        "id": "appkey-0003",
-        "attributes": {
-            "name": "bob-old-script",
-            "last4": "a003",
-            "created_at": "2022-01-01T00:00:00+00:00",
-            "last_used_at": None,
-            "scopes": [],
-        },
-        "relationships": {
-            "owned_by": {"data": {"type": "users", "id": BOB_ID}},
-        },
-    },
-]
-
-ACCESS_TOKENS = [
-    {
-        "type": "personal_access_tokens",
-        "id": "pat-0001",
-        "attributes": {
-            "name": "alice-cli",
-            "public_portion": FAKE_SECRETS[2],
-            "key": FAKE_SECRETS[3],
-            "created_at": "2026-11-01T00:00:00+00:00",
-            "modified_at": None,
-            "expires_at": "2026-12-01T00:00:00+00:00",
-            "last_used_at": "2026-11-24T00:00:00+00:00",
-            "scopes": ["dashboards_read"],
-        },
-        "relationships": {
-            "owned_by": {"data": {"type": "users", "id": ALICE_ID}},
-            "leak_information": {"data": None},
-        },
-    },
-    {
-        "type": "service_access_tokens",
-        "id": "sat-0001",
-        "attributes": {
-            "name": "ci-deployer-token",
-            "public_portion": FAKE_SECRETS[4],
-            "created_at": "2026-06-01T00:00:00+00:00",
-            "modified_at": "2026-06-02T00:00:00+00:00",
-            "expires_at": None,
-            "last_used_at": "2026-11-25T00:00:00+00:00",
-            "scopes": ["monitors_write", "dashboards_read"],
-        },
-        "relationships": {
-            "owned_by": {"data": {"type": "users", "id": CI_SA_ID}},
-        },
-    },
-]
 
 PAGINATED_PATHS = {
     "/api/v2/roles": ROLES,
     "/api/v2/users": USERS,
-    "/api/v2/api_keys": API_KEYS,
-    "/api/v2/application_keys": APPLICATION_KEYS,
-    "/api/v2/personal_access_tokens": ACCESS_TOKENS,
 }
 
 OBJECT_PATHS: dict[str, Any] = {
@@ -426,7 +310,7 @@ class FakeDatadogAPI:
 
 
 def other_org_api() -> FakeDatadogAPI:
-    """A second organization with one admin and no keys."""
+    """A second organization with one admin."""
     admin = _user(
         "user-other-0001",
         "Other Admin",
@@ -438,9 +322,6 @@ def other_org_api() -> FakeDatadogAPI:
         paginated={
             "/api/v2/roles": [_role("role-other-admin", "Datadog Admin Role", [], 1)],
             "/api/v2/users": [admin],
-            "/api/v2/api_keys": [],
-            "/api/v2/application_keys": [],
-            "/api/v2/personal_access_tokens": [],
         },
         objects={
             "/api/v2/current_user": {

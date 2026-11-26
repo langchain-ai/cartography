@@ -55,16 +55,17 @@ def get(api_session: requests.Session, base_url: str) -> list[dict[str, Any]]:
 def transform(
     raw_users: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Split Datadog users into people and service accounts."""
+    """Split Datadog users into people and service accounts, keeping identity fields only."""
     users = []
     service_accounts = []
     for user in raw_users:
         attributes = user["attributes"]
+        # Copy an explicit allowlist of account fields. Profile and sign-in
+        # details, such as a person's name, title, icon, MFA state, and last
+        # sign-in, are never collected.
         identity = {
             "id": user["id"],
-            "name": attributes.get("name"),
             "email": attributes.get("email"),
-            "handle": attributes.get("handle"),
             "status": attributes.get("status"),
             "disabled": attributes.get("disabled"),
             "created_at": attributes.get("created_at"),
@@ -72,17 +73,10 @@ def transform(
             "role_ids": relationship_ids(user, "roles"),
         }
         if attributes.get("service_account"):
+            # A service account's name identifies the integration, not a person.
+            identity["name"] = attributes.get("name")
             service_accounts.append(identity)
             continue
-        identity.update(
-            {
-                "title": attributes.get("title"),
-                "verified": attributes.get("verified"),
-                "mfa_enabled": attributes.get("mfa_enabled"),
-                "last_login_time": attributes.get("last_login_time"),
-                "allowed_login_methods": attributes.get("allowed_login_methods"),
-            },
-        )
         users.append(identity)
     return users, service_accounts
 

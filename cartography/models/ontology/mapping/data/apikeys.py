@@ -397,68 +397,7 @@ neon_mapping = OntologyMapping(
 )
 
 
-datadog_mapping = OntologyMapping(
-    module_name="datadog",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="DatadogAPIKey",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="created_at", node_field="created_at"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="updated_at", node_field="modified_at"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="last_used_at", node_field="date_last_used"
-                ),
-                # expires_at: Not available; API keys don't expire.
-            ],
-        ),
-        OntologyNodeMapping(
-            node_label="DatadogApplicationKey",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="created_at", node_field="created_at"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="last_used_at", node_field="last_used_at"
-                ),
-                # updated_at: Not available
-                # expires_at: Not available; application keys don't expire.
-            ],
-        ),
-        OntologyNodeMapping(
-            node_label="DatadogAccessToken",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="created_at", node_field="created_at"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="updated_at", node_field="modified_at"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="expires_at", node_field="expires_at"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="last_used_at", node_field="last_used_at"
-                ),
-            ],
-        ),
-    ],
-)
-
 APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
-    "datadog": datadog_mapping,
     "zendesk": zendesk_mapping,
     "anthropic": anthropic_mapping,
     "github": github_mapping,

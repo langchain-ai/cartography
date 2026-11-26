@@ -20,10 +20,18 @@ DATADOG_LABELS = [
     "DatadogRole",
     "DatadogUser",
     "DatadogServiceAccount",
-    "DatadogAPIKey",
-    "DatadogApplicationKey",
-    "DatadogAccessToken",
 ]
+
+USER_PROPERTIES = {
+    "id",
+    "email",
+    "status",
+    "disabled",
+    "created_at",
+    "modified_at",
+    "lastupdated",
+    "firstseen",
+}
 
 
 def _config(update_tag: int) -> Config:
@@ -61,14 +69,21 @@ def _count(neo4j_session, label: str, update_tag: int | None = None) -> int:
     return neo4j_session.run(query, tag=update_tag).single()["c"]
 
 
-def _snapshot(neo4j_session) -> dict[str, set[str]]:
-    return {
+def _snapshot(neo4j_session) -> dict[str, set]:
+    snapshot: dict[str, set] = {
         label: {
             record["id"]
             for record in neo4j_session.run(f"MATCH (n:{label}) RETURN n.id AS id")
         }
         for label in DATADOG_LABELS
     }
+    snapshot["HAS_ROLE"] = {
+        (record["a"], record["r"])
+        for record in neo4j_session.run(
+            "MATCH (a)-[:HAS_ROLE]->(r:DatadogRole) RETURN a.id AS a, r.id AS r",
+        )
+    }
+    return snapshot
 
 
 def _paginated_without(path: str, item_id: str) -> dict:
@@ -97,7 +112,7 @@ def test_sync_datadog(neo4j_session):
         (fixtures.ADMIN_ROLE_ID, "Datadog Admin Role"),
         (fixtures.STANDARD_ROLE_ID, "Datadog Standard Role"),
         (fixtures.READ_ONLY_ROLE_ID, "Datadog Read Only Role"),
-        (fixtures.AUDITOR_ROLE_ID, "Key auditor"),
+        (fixtures.AUDITOR_ROLE_ID, "Access auditor"),
     }
     auditor = neo4j_session.run(
         "MATCH (r:DatadogRole {id: $id}) RETURN r.permissions AS p",
@@ -117,27 +132,34 @@ def test_sync_datadog(neo4j_session):
         for row in check_nodes(
             neo4j_session,
             "DatadogUser",
-            ["id", "email", "status", "disabled", "mfa_enabled"],
+            ["id", "email", "status", "disabled"],
         )
         if not row[0].startswith("user-gen-")
     }
     assert named_users == {
-        (fixtures.ALICE_ID, "alice@example.com", "Active", False, True),
-        (fixtures.BOB_ID, "bob@example.com", "Disabled", True, False),
-        (fixtures.CAROL_ID, "carol@example.com", "Pending", False, None),
+        (fixtures.ALICE_ID, "alice@example.com", "Active", False),
+        (fixtures.BOB_ID, "bob@example.com", "Disabled", True),
+        (fixtures.CAROL_ID, "carol@example.com", "Pending", False),
     }
     assert check_nodes(
         neo4j_session,
         "DatadogServiceAccount",
-        ["id", "name", "disabled"],
+        ["id", "name", "email", "disabled"],
     ) == {
-        (fixtures.CI_SA_ID, "ci-deployer", False),
-        (fixtures.CARTOGRAPHY_SA_ID, "cartography-readonly", False),
+        (fixtures.CI_SA_ID, "ci-deployer", "ci-deployer@example.com", False),
+        (
+            fixtures.CARTOGRAPHY_SA_ID,
+            "cartography-readonly",
+            "security@example.com",
+            False,
+        ),
     }
     assert (
         _count(neo4j_session, "DatadogUser:UserAccount")
         == 3 + fixtures.GENERATED_USER_COUNT
     )
+    assert _count(neo4j_session, "DatadogServiceAccount:ServiceAccount") == 2
+    assert _count(neo4j_session, "DatadogRole:PermissionRole") == 4
 
     user_roles = {
         row
@@ -156,6 +178,15 @@ def test_sync_datadog(neo4j_session):
         (fixtures.ALICE_ID, fixtures.READ_ONLY_ROLE_ID),
         (fixtures.BOB_ID, fixtures.STANDARD_ROLE_ID),
     }
+    generated_memberships = neo4j_session.run(
+        """
+        MATCH (u:DatadogUser)-[:HAS_ROLE]->(:DatadogRole {id: $role})
+        WHERE u.id STARTS WITH 'user-gen-'
+        RETURN count(u) AS c
+        """,
+        role=fixtures.READ_ONLY_ROLE_ID,
+    ).single()["c"]
+    assert generated_memberships == fixtures.GENERATED_USER_COUNT
     assert check_rels(
         neo4j_session,
         "DatadogServiceAccount",
@@ -168,87 +199,6 @@ def test_sync_datadog(neo4j_session):
         (fixtures.CARTOGRAPHY_SA_ID, fixtures.AUDITOR_ROLE_ID),
     }
 
-    assert check_nodes(
-        neo4j_session,
-        "DatadogAPIKey",
-        ["id", "name", "last4", "leaked"],
-    ) == {
-        ("apikey-0001", "production-agents", "0001", False),
-        ("apikey-0002", "ci-metrics", "0002", True),
-    }
-    assert check_rels(
-        neo4j_session,
-        "DatadogUser",
-        "id",
-        "DatadogAPIKey",
-        "id",
-        "CREATED",
-    ) == {(fixtures.BOB_ID, "apikey-0001")}
-    assert check_rels(
-        neo4j_session,
-        "DatadogServiceAccount",
-        "id",
-        "DatadogAPIKey",
-        "id",
-        "CREATED",
-    ) == {(fixtures.CI_SA_ID, "apikey-0002")}
-
-    assert check_nodes(
-        neo4j_session,
-        "DatadogApplicationKey",
-        ["id", "is_scoped", "leaked"],
-    ) == {
-        ("appkey-0001", False, False),
-        ("appkey-0002", True, False),
-        ("appkey-0003", False, None),
-    }
-    assert check_rels(
-        neo4j_session,
-        "DatadogApplicationKey",
-        "id",
-        "DatadogUser",
-        "id",
-        "OWNED_BY",
-    ) == {("appkey-0001", fixtures.ALICE_ID), ("appkey-0003", fixtures.BOB_ID)}
-    assert check_rels(
-        neo4j_session,
-        "DatadogApplicationKey",
-        "id",
-        "DatadogServiceAccount",
-        "id",
-        "OWNED_BY",
-    ) == {("appkey-0002", fixtures.CARTOGRAPHY_SA_ID)}
-
-    assert check_nodes(
-        neo4j_session,
-        "DatadogAccessToken",
-        ["id", "token_type", "expires_at"],
-    ) == {
-        ("pat-0001", "personal", "2026-12-01T00:00:00+00:00"),
-        ("sat-0001", "service", None),
-    }
-    assert check_rels(
-        neo4j_session,
-        "DatadogAccessToken",
-        "id",
-        "DatadogUser",
-        "id",
-        "OWNED_BY",
-    ) == {("pat-0001", fixtures.ALICE_ID)}
-    assert check_rels(
-        neo4j_session,
-        "DatadogAccessToken",
-        "id",
-        "DatadogServiceAccount",
-        "id",
-        "OWNED_BY",
-    ) == {("sat-0001", fixtures.CI_SA_ID)}
-    assert (
-        _count(neo4j_session, "DatadogAPIKey:APIKey")
-        + _count(neo4j_session, "DatadogApplicationKey:APIKey")
-        + _count(neo4j_session, "DatadogAccessToken:APIKey")
-    ) == 7
-
     resource_targets = neo4j_session.run(
         """
         MATCH (:DatadogOrganization {id: $org})-[:RESOURCE]->(n)
@@ -256,13 +206,20 @@ def test_sync_datadog(neo4j_session):
         """,
         org=fixtures.ORG_ID,
     ).single()["c"]
-    assert resource_targets == 4 + 3 + fixtures.GENERATED_USER_COUNT + 2 + 2 + 3 + 2
+    assert resource_targets == 4 + 3 + fixtures.GENERATED_USER_COUNT + 2
 
-    # The module sends only GET requests.
+    # The module sends only GET requests, and only to the four
+    # access-governance endpoints.
     assert {method for method, _, _ in fake_api.requests} == {"GET"}
+    assert {url for _, url, _ in fake_api.requests} == {
+        f"{FakeDatadogAPI.base_url}/api/v2/current_user",
+        f"{FakeDatadogAPI.base_url}/api/v2/roles",
+        f"{FakeDatadogAPI.base_url}/api/v2/permissions",
+        f"{FakeDatadogAPI.base_url}/api/v2/users",
+    }
 
 
-def test_sync_datadog_stores_no_secret_values(neo4j_session):
+def test_sync_datadog_stores_no_profile_details(neo4j_session):
     # Arrange
     _reset(neo4j_session)
 
@@ -270,19 +227,14 @@ def test_sync_datadog_stores_no_secret_values(neo4j_session):
     _run(neo4j_session, FakeDatadogAPI(), TEST_UPDATE_TAG)
 
     # Assert
-    records = neo4j_session.run(
-        """
-        MATCH (n)
-        WHERE n:DatadogAPIKey OR n:DatadogApplicationKey OR n:DatadogAccessToken
-        RETURN properties(n) AS props
-        """,
-    )
-    for record in records:
+    for record in neo4j_session.run(
+        "MATCH (u:DatadogUser) RETURN properties(u) AS props",
+    ):
         props = record["props"]
-        assert "key" not in props
-        assert "public_portion" not in props
+        assert {key for key in props if not key.startswith("_")} <= USER_PROPERTIES
+        assert not set(fixtures.PROFILE_ATTRIBUTES) & set(props)
         for value in props.values():
-            assert str(value) not in fixtures.FAKE_SECRETS
+            assert str(value) not in fixtures.PROFILE_SENTINELS
 
 
 def test_complete_resync_removes_stale_nodes(neo4j_session):
@@ -290,9 +242,20 @@ def test_complete_resync_removes_stale_nodes(neo4j_session):
     _reset(neo4j_session)
     _run(neo4j_session, FakeDatadogAPI(), TEST_UPDATE_TAG)
     paginated = _paginated_without("/api/v2/users", fixtures.BOB_ID)
-    paginated["/api/v2/api_keys"] = [
-        key for key in paginated["/api/v2/api_keys"] if key["id"] != "apikey-0001"
+    paginated["/api/v2/roles"] = [
+        role
+        for role in paginated["/api/v2/roles"]
+        if role["id"] != fixtures.AUDITOR_ROLE_ID
     ]
+    for user in paginated["/api/v2/users"]:
+        if user["id"] == fixtures.ALICE_ID:
+            user["relationships"]["roles"]["data"] = [
+                {"type": "roles", "id": fixtures.READ_ONLY_ROLE_ID},
+            ]
+        if user["id"] == fixtures.CARTOGRAPHY_SA_ID:
+            user["relationships"]["roles"]["data"] = [
+                {"type": "roles", "id": fixtures.READ_ONLY_ROLE_ID},
+            ]
 
     # Act
     _run(neo4j_session, FakeDatadogAPI(paginated=paginated), SECOND_UPDATE_TAG)
@@ -301,13 +264,33 @@ def test_complete_resync_removes_stale_nodes(neo4j_session):
     snapshot = _snapshot(neo4j_session)
     assert fixtures.BOB_ID not in snapshot["DatadogUser"]
     assert fixtures.ALICE_ID in snapshot["DatadogUser"]
-    assert snapshot["DatadogAPIKey"] == {"apikey-0002"}
+    assert fixtures.AUDITOR_ROLE_ID not in snapshot["DatadogRole"]
+    assert (fixtures.ALICE_ID, fixtures.ADMIN_ROLE_ID) not in snapshot["HAS_ROLE"]
+    assert (fixtures.ALICE_ID, fixtures.READ_ONLY_ROLE_ID) in snapshot["HAS_ROLE"]
+    assert (fixtures.CARTOGRAPHY_SA_ID, fixtures.READ_ONLY_ROLE_ID) in snapshot[
+        "HAS_ROLE"
+    ]
     assert _count(neo4j_session, "DatadogUser", TEST_UPDATE_TAG) == 0
+    assert _count(neo4j_session, "DatadogRole", TEST_UPDATE_TAG) == 0
 
 
 @pytest.mark.parametrize(
     "fake_api",
     [
+        pytest.param(
+            FakeDatadogAPI(
+                paginated=_paginated_without("/api/v2/users", fixtures.BOB_ID),
+                failures={("/api/v2/users", 0): 403},
+            ),
+            id="users-denied",
+        ),
+        pytest.param(
+            FakeDatadogAPI(
+                paginated=_paginated_without("/api/v2/users", fixtures.BOB_ID),
+                failures={("/api/v2/users", 1): 403},
+            ),
+            id="users-denied-mid-listing",
+        ),
         pytest.param(
             FakeDatadogAPI(
                 paginated=_paginated_without("/api/v2/users", fixtures.BOB_ID),
@@ -344,7 +327,7 @@ def test_complete_resync_removes_stale_nodes(neo4j_session):
         ),
     ],
 )
-def test_failed_or_partial_user_listing_keeps_graph(neo4j_session, fake_api):
+def test_denied_failed_or_partial_user_listing_keeps_graph(neo4j_session, fake_api):
     # Arrange
     _reset(neo4j_session)
     _run(neo4j_session, FakeDatadogAPI(), TEST_UPDATE_TAG)
@@ -357,81 +340,56 @@ def test_failed_or_partial_user_listing_keeps_graph(neo4j_session, fake_api):
     # Assert
     assert _snapshot(neo4j_session) == before
     assert fixtures.BOB_ID in before["DatadogUser"]
-    # Users, keys, and tokens were neither cleaned up nor rewritten.
     assert _count(neo4j_session, "DatadogUser", SECOND_UPDATE_TAG) == 0
-    assert _count(neo4j_session, "DatadogApplicationKey", SECOND_UPDATE_TAG) == 0
-    assert _count(neo4j_session, "DatadogAccessToken", SECOND_UPDATE_TAG) == 0
+    assert _count(neo4j_session, "DatadogServiceAccount", SECOND_UPDATE_TAG) == 0
 
 
-def test_failed_role_listing_keeps_graph(neo4j_session):
+@pytest.mark.parametrize(
+    "fake_api",
+    [
+        pytest.param(
+            FakeDatadogAPI(
+                paginated={**fixtures.PAGINATED_PATHS, "/api/v2/roles": []},
+            ),
+            id="empty-role-listing",
+        ),
+        pytest.param(
+            FakeDatadogAPI(failures={("/api/v2/roles", 0): 403}),
+            id="roles-denied",
+        ),
+        pytest.param(
+            FakeDatadogAPI(failures={("/api/v2/permissions", 0): 403}),
+            id="permissions-denied",
+        ),
+        pytest.param(
+            FakeDatadogAPI(failures={("/api/v2/current_user", 0): 401}),
+            id="credential-rejected",
+        ),
+    ],
+)
+def test_denied_or_empty_role_reads_keep_graph(neo4j_session, fake_api):
     # Arrange
     _reset(neo4j_session)
     _run(neo4j_session, FakeDatadogAPI(), TEST_UPDATE_TAG)
     before = _snapshot(neo4j_session)
-    fake_api = FakeDatadogAPI(
-        paginated={**fixtures.PAGINATED_PATHS, "/api/v2/roles": []},
-    )
 
     # Act and assert
-    with pytest.raises(DatadogIncompleteListError):
+    with pytest.raises((requests.HTTPError, DatadogIncompleteListError)):
         _run(neo4j_session, fake_api, SECOND_UPDATE_TAG)
 
     # Assert
     assert _snapshot(neo4j_session) == before
     assert _count(neo4j_session, "DatadogRole", TEST_UPDATE_TAG) == 4
-
-
-def test_missing_optional_permissions_keep_key_nodes(neo4j_session):
-    # Arrange
-    _reset(neo4j_session)
-    _run(neo4j_session, FakeDatadogAPI(), TEST_UPDATE_TAG)
-    fake_api = FakeDatadogAPI(
-        paginated=_paginated_without("/api/v2/users", fixtures.CAROL_ID),
-        failures={
-            ("/api/v2/api_keys", 0): 403,
-            ("/api/v2/application_keys", 0): 403,
-        },
+    assert _count(neo4j_session, "DatadogUser", TEST_UPDATE_TAG) == (
+        3 + fixtures.GENERATED_USER_COUNT
     )
-
-    # Act
-    _run(neo4j_session, fake_api, SECOND_UPDATE_TAG)
-
-    # Assert
-    snapshot = _snapshot(neo4j_session)
-    # Users still sync and clean up from their complete listing.
-    assert fixtures.CAROL_ID not in snapshot["DatadogUser"]
-    assert _count(neo4j_session, "DatadogUser", TEST_UPDATE_TAG) == 0
-    # Key and token nodes are kept, with their earlier update tag.
-    assert _count(neo4j_session, "DatadogAPIKey", TEST_UPDATE_TAG) == 2
-    assert _count(neo4j_session, "DatadogApplicationKey", TEST_UPDATE_TAG) == 3
-    assert _count(neo4j_session, "DatadogAccessToken", TEST_UPDATE_TAG) == 2
-    # Without org_app_keys_read, the access token listing isn't trusted.
-    assert all(
-        not url.endswith("/api/v2/personal_access_tokens")
-        for _, url, _ in fake_api.requests
-    )
-
-
-def test_unavailable_access_tokens_keep_token_nodes(neo4j_session):
-    # Arrange
-    _reset(neo4j_session)
-    _run(neo4j_session, FakeDatadogAPI(), TEST_UPDATE_TAG)
-    fake_api = FakeDatadogAPI(
-        failures={("/api/v2/personal_access_tokens", 0): 404},
-    )
-
-    # Act
-    _run(neo4j_session, fake_api, SECOND_UPDATE_TAG)
-
-    # Assert
-    assert _count(neo4j_session, "DatadogApplicationKey", SECOND_UPDATE_TAG) == 3
-    assert _count(neo4j_session, "DatadogAccessToken", TEST_UPDATE_TAG) == 2
 
 
 def test_cleanup_is_scoped_to_the_organization(neo4j_session):
     # Arrange
     _reset(neo4j_session)
     _run(neo4j_session, FakeDatadogAPI(), TEST_UPDATE_TAG)
+    before = _snapshot(neo4j_session)
 
     # Act
     _run(neo4j_session, fixtures.other_org_api(), SECOND_UPDATE_TAG)
@@ -441,10 +399,13 @@ def test_cleanup_is_scoped_to_the_organization(neo4j_session):
         (fixtures.ORG_ID,),
         (fixtures.OTHER_ORG_ID,),
     }
+    after = _snapshot(neo4j_session)
+    assert before["DatadogUser"] <= after["DatadogUser"]
+    assert before["DatadogRole"] <= after["DatadogRole"]
+    assert before["HAS_ROLE"] <= after["HAS_ROLE"]
     assert _count(neo4j_session, "DatadogUser", TEST_UPDATE_TAG) == (
         3 + fixtures.GENERATED_USER_COUNT
     )
-    assert _count(neo4j_session, "DatadogApplicationKey", TEST_UPDATE_TAG) == 3
     assert check_rels(
         neo4j_session,
         "DatadogOrganization",
@@ -453,3 +414,11 @@ def test_cleanup_is_scoped_to_the_organization(neo4j_session):
         "id",
         "RESOURCE",
     ) >= {(fixtures.OTHER_ORG_ID, "user-other-0001")}
+    other_org_users = neo4j_session.run(
+        """
+        MATCH (:DatadogOrganization {id: $org})-[:RESOURCE]->(u:DatadogUser)
+        RETURN count(u) AS c
+        """,
+        org=fixtures.OTHER_ORG_ID,
+    ).single()["c"]
+    assert other_org_users == 1

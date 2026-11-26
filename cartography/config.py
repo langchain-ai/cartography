@@ -457,9 +457,9 @@ class Config:
     :type neon_base_url: str
     :param neon_base_url: Neon API base URL. Optional.
     :type datadog_api_key: str
-    :param datadog_api_key: Datadog API key. Required with an application key; optional with an access token.
+    :param datadog_api_key: Datadog API key. Required with an application key; optional with a service access token.
     :type datadog_app_key: str
-    :param datadog_app_key: Datadog application key, personal access token, or service access token. Optional.
+    :param datadog_app_key: Datadog application key or service access token. Optional.
     :type datadog_site: str
     :param datadog_site: Datadog site, for example datadoghq.com or datadoghq.eu. Optional.
     :type databricks_workspace_url: str

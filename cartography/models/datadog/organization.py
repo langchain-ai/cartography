@@ -31,9 +31,9 @@ class DatadogOrganizationSchema(CartographyNodeSchema):
     """A Datadog organization, read from `GET /api/v2/current_user`.
 
     The organization is the tenant for every other Datadog node. Cartography
-    reads only identity and access metadata: users, service accounts, roles,
-    and the metadata of API keys, application keys, and access tokens. It never
-    reads key or token values, and it never writes to Datadog.
+    reads only access governance data: users, service accounts, roles, role
+    memberships, and role permissions. It doesn't collect API keys,
+    application keys, access tokens, or logs, and it never writes to Datadog.
     """
 
     label: str = "DatadogOrganization"

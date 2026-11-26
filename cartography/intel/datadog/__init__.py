@@ -2,9 +2,6 @@ import logging
 
 import neo4j
 
-import cartography.intel.datadog.accesstokens
-import cartography.intel.datadog.apikeys
-import cartography.intel.datadog.applicationkeys
 import cartography.intel.datadog.organization
 import cartography.intel.datadog.roles
 import cartography.intel.datadog.users
@@ -20,11 +17,11 @@ logger = logging.getLogger(__name__)
 def start_datadog_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
     If this module is configured, perform read-only ingestion of Datadog
-    governance data. Otherwise warn and exit.
+    access governance data: users, service accounts, roles, role memberships,
+    and role permissions. Otherwise warn and exit.
 
-    Each resource type is cleaned up only after Cartography reads its complete
-    listing. A failed, throttled, or inconsistent read raises before cleanup,
-    and an optional listing that the credential can't read is skipped without
+    Each node type is cleaned up only after Cartography reads its complete
+    listing. A denied, failed, throttled, or inconsistent read raises before
     cleanup, so existing nodes stay in the graph.
 
     :param neo4j_session: Neo4J session for database interface
@@ -52,8 +49,7 @@ def start_datadog_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
     )
     common_job_parameters["ORG_ID"] = org_id
 
-    # Roles load before users so that HAS_ROLE edges find their targets, and
-    # users load before keys so that ownership edges find theirs.
+    # Roles load before users so that HAS_ROLE edges find their targets.
     cartography.intel.datadog.roles.sync(
         neo4j_session,
         api_session,
@@ -66,22 +62,3 @@ def start_datadog_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         base_url,
         common_job_parameters,
     )
-    cartography.intel.datadog.apikeys.sync(
-        neo4j_session,
-        api_session,
-        base_url,
-        common_job_parameters,
-    )
-    org_app_keys_readable = cartography.intel.datadog.applicationkeys.sync(
-        neo4j_session,
-        api_session,
-        base_url,
-        common_job_parameters,
-    )
-    if org_app_keys_readable:
-        cartography.intel.datadog.accesstokens.sync(
-            neo4j_session,
-            api_session,
-            base_url,
-            common_job_parameters,
-        )

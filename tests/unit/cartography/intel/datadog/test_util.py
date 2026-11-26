@@ -9,7 +9,6 @@ from cartography.intel.datadog import util
 from cartography.intel.datadog.util import build_base_url
 from cartography.intel.datadog.util import build_session
 from cartography.intel.datadog.util import DatadogIncompleteListError
-from cartography.intel.datadog.util import leak_status
 from cartography.intel.datadog.util import paginated_get
 from cartography.intel.datadog.util import ReadOnlySession
 from tests.data.datadog.api import FakeDatadogAPI
@@ -212,18 +211,6 @@ def test_build_base_url(site, expected):
 def test_build_base_url_rejects_plain_http():
     with pytest.raises(ValueError, match="HTTPS"):
         build_base_url("http://api.datadoghq.com")
-
-
-@pytest.mark.parametrize(
-    ("relationships", "expected"),
-    [
-        ({}, None),
-        ({"leak_information": {"data": None}}, False),
-        ({"leak_information": {"data": {"id": "leak", "type": "leaked_keys"}}}, True),
-    ],
-)
-def test_leak_status(relationships, expected):
-    assert leak_status({"id": "k", "relationships": relationships}) is expected
 
 
 def _json_response(body: dict) -> requests.Response:

@@ -82,8 +82,6 @@ from cartography.models.azure.function_app import (
 from cartography.models.azure.function_app import (
     AzureFunctionAppToGitLabContainerImageRel,
 )
-from cartography.models.datadog.apikey import DatadogServiceAccountToAPIKeyRel
-from cartography.models.datadog.apikey import DatadogUserToAPIKeyRel
 from cartography.models.duo.user import DuoGroupToDuoUserRel
 from cartography.models.gcp.cloudrun.job import CloudRunJobToServiceAccountRel
 from cartography.models.gcp.cloudrun.job_container import (
@@ -321,10 +319,6 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # CREATED records who created a Zendesk API token, a historical audit
         # fact distinct from the canonical OWNED_BY assignee edge.
         ZendeskAPITokenToCreatorRel,
-        # CREATED records who created a Datadog API key. API keys belong to the
-        # organization, so there is no OWNED_BY assignee to link instead.
-        DatadogUserToAPIKeyRel,
-        DatadogServiceAccountToAPIKeyRel,
         # MAPS_TO is identity federation (a Kubernetes group maps to an AWS
         # user), not group membership. Distinct from MEMBER_OF.
         KubernetesGroupToAWSUserRel,

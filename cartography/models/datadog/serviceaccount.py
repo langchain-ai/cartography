@@ -25,10 +25,6 @@ class DatadogServiceAccountNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Notification email address of the service account.",
     )
-    handle: PropertyRef = PropertyRef(
-        "handle",
-        description="Handle of the service account.",
-    )
     status: PropertyRef = PropertyRef(
         "status",
         description="Account status: `Active` or `Disabled`.",
@@ -36,8 +32,8 @@ class DatadogServiceAccountNodeProperties(CartographyNodeProperties):
     disabled: PropertyRef = PropertyRef(
         "disabled",
         description=(
-            "Whether the service account is disabled. A disabled service "
-            "account's application keys stop working."
+            "Whether the service account is disabled and its credentials "
+            "stop working."
         ),
     )
     created_at: PropertyRef = PropertyRef(
@@ -98,8 +94,9 @@ class DatadogServiceAccountSchema(CartographyNodeSchema):
     """A Datadog service account, read from `GET /api/v2/users`.
 
     Datadog lists service accounts with users and marks them with
-    `service_account: true`. Service accounts can't sign in; they own
-    application keys and service access tokens.
+    `service_account: true`. Service accounts can't sign in. Cartography keeps
+    identity and lifecycle metadata and role memberships; it doesn't collect
+    the service account's keys or tokens.
     """
 
     label: str = "DatadogServiceAccount"

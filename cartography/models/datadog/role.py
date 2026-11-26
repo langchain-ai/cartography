@@ -39,7 +39,7 @@ class DatadogRoleNodeProperties(CartographyNodeProperties):
         "permissions",
         description=(
             "Sorted list of permission names that the role grants, for example "
-            "`api_keys_read`. A permission that `GET /api/v2/permissions` "
+            "`user_access_read`. A permission that `GET /api/v2/permissions` "
             "doesn't list keeps its ID."
         ),
     )
