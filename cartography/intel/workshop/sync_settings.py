@@ -115,10 +115,25 @@ def sync(
     tenant_id: str,
     update_tag: int,
 ) -> None:
-    tags = transform(get(api_url, api_key), tenant_id)
-    modes = [
-        {"id": tag["mode_id"], "name": tag["configured_client_mode"]} for tag in tags
-    ]
+    load_settings(
+        neo4j_session,
+        transform(get(api_url, api_key), tenant_id),
+        tenant_id,
+        update_tag,
+    )
+
+
+def load_settings(
+    neo4j_session: neo4j.Session,
+    tags: list[dict[str, Any]],
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    modes = {
+        tag["mode_id"]: {"id": tag["mode_id"], "name": tag["configured_client_mode"]}
+        for tag in tags
+        if "mode_id" in tag
+    }
     load(
         neo4j_session,
         WorkshopTenantSchema(),
@@ -126,7 +141,7 @@ def sync(
         lastupdated=update_tag,
     )
     for schema, data in (
-        (WorkshopClientModeSchema(), modes),
+        (WorkshopClientModeSchema(), list(modes.values())),
         (WorkshopTagSchema(), tags),
     ):
         load(

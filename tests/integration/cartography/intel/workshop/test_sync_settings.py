@@ -3,8 +3,7 @@ import json
 import pytest
 import requests
 
-from cartography.config import Config
-from cartography.intel.workshop import start_workshop_ingestion
+from cartography.intel.workshop import sync_settings
 from tests.data.workshop import API_KEY
 from tests.data.workshop import API_URL
 from tests.data.workshop import response
@@ -22,16 +21,7 @@ def reset_workshop(neo4j_session):
 
 
 def run_sync(session, tenant, update_tag):
-    start_workshop_ingestion(
-        session,
-        Config(
-            neo4j_uri="bolt://example.invalid",
-            workshop_api_url=API_URL,
-            workshop_api_key=API_KEY,
-            workshop_tenant_id=tenant,
-            update_tag=update_tag,
-        ),
-    )
+    sync_settings.sync(session, API_URL, API_KEY, tenant, update_tag)
 
 
 def graph_snapshot(session):

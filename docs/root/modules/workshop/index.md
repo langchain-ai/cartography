@@ -3,5 +3,6 @@
 ```{toctree}
 config
 schema
+queries
 limitations
 ```

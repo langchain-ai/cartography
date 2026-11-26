@@ -92,12 +92,12 @@ class WorkshopTagProperties(CartographyNodeProperties):
     tenant_id: PropertyRef = PropertyRef(
         "TENANT_ID", set_in_kwargs=True, description="Operator-configured tenant scope."
     )
-    tag: PropertyRef = PropertyRef("tag", description="Literal ListSyncSettings tag.")
+    tag: PropertyRef = PropertyRef("tag", description="Literal Workshop tag name.")
 
 
 @dataclass(frozen=True)
 class WorkshopTagSchema(CartographyNodeSchema):
-    """A configured tag; complete reads replace stale edges only in this tenant."""
+    """A tenant-scoped tag from settings, the catalog, or host membership."""
 
     label: str = "WorkshopTag"
     properties: WorkshopTagProperties = WorkshopTagProperties()

@@ -3,7 +3,7 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.workshop.sync_settings import sync
+from cartography.intel.workshop.inventory import sync
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

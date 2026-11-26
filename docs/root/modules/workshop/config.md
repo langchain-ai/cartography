@@ -1,7 +1,9 @@
 # Workshop configuration
 
-This connector reads configured tag-to-client-mode mappings with `ListSyncSettings` only.
-It writes the resulting inventory to your Cartography graph, not to Workshop.
+This connector reads workstation inventory, host tags, directory users, the tag catalog,
+and configured tag-to-client-mode mappings. It calls only `ListHosts`, `ListUsers`,
+`ListTags`, and `ListSyncSettings`. It writes inventory to your Cartography graph,
+not to Workshop.
 
 ## Authentication
 
@@ -13,10 +15,19 @@ by North Pole Security. Do not put keys in command-line arguments or fixture fil
 
 | Permission | Purpose |
 | --- | --- |
-| `read:settings` | Call the side-effect-free `ListSyncSettings` RPC. |
+| `read:settings` | Call `ListSyncSettings` for configured client modes. |
+| `read:hosts` | Call `ListHosts` for workstation details, primary users, and assigned tags. |
+| `read:scim` | Call `ListUsers` for directory user details. |
+| `read:tags` | Call `ListTags` for tags without a host or client-mode setting. |
 
-No write, event, host, or policy-management permissions are required. Use a key limited
-to read-only settings access. This connector does not create keys or change permissions.
+All four RPCs are annotated `NO_SIDE_EFFECTS`. Use tenant-wide read permissions, not
+`read:hosts:self`, which can produce a partial inventory. The expanded connector requires
+all four reads; a key that previously had only `read:settings` must have these additional
+read permissions before you rerun it. A denied read aborts without graph writes or cleanup;
+the connector does not fall back to a partial sync or change the key's permissions.
+
+No write, event, or policy-management permissions are required. This connector does not
+create keys, request workstation commands, or change permissions.
 
 ## Configure Cartography
 
