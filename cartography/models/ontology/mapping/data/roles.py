@@ -473,7 +473,29 @@ langsmith_mapping = OntologyMapping(
 )
 
 
+datadog_mapping = OntologyMapping(
+    module_name="datadog",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="DatadogRole",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "org"},
+                ),
+                # Role type: Not available; the API doesn't flag managed roles.
+            ],
+        ),
+    ],
+)
+
 ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "datadog": datadog_mapping,
     "zoom": zoom_mapping,
     "aws": aws_mapping,
     "huntress": huntress_mapping,
